@@ -10,132 +10,56 @@ import shutil
 import time
 import asyncio
 from typing import Dict, Any
+import logging
 
-app = FastAPI()
-
-# Cache to store cloned repositories
-repo_cache: Dict[str, Dict[str, Any]] = {}
-CACHE_EXPIRATION = 3600  # 1 hour
-
-class RepoRequest(BaseModel):
-    git_url: str
-
-class PullRequestRequest(BaseModel):
-    git_url: str
-    github_token: str
-    summary: str
-
-def clone_repo(git_url: str, clone_dir: Path):
-    try:
-        subprocess.run(["git", "clone", git_url, str(clone_dir)], check=True, capture_output=True, text=True)
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=400, detail=f"Error cloning repository: {e.stderr}")
-
-async def run_code2prompt(clone_dir: Path):
-    process = await asyncio.create_subprocess_exec(
-        "code2prompt", "--path", str(clone_dir),
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
-    stdout, stderr = await process.communicate()
-    if process.returncode != 0:
-        raise HTTPException(status_code=500, detail=f"Error running code2prompt: {stderr.decode()}")
-    
-    # Process the output to use relative paths
-    output = stdout.decode()
-    return process_relative_paths(output, clone_dir)
-
-def process_relative_paths(output: str, base_path: Path) -> str:
-    lines = output.split('\n')
-    processed_lines = []
-    for line in lines:
-        if line.startswith("- ") and base_path.as_posix() in line:
-            relative_path = Path(line.split(base_path.as_posix())[-1].strip()).as_posix()
-            processed_lines.append(f"- {relative_path}")
-        elif "## File: " in line and base_path.as_posix() in line:
-            relative_path = Path(line.split(base_path.as_posix())[-1].strip()).as_posix()
-            processed_lines.append(f"## File: {relative_path}")
-        else:
-            processed_lines.append(line)
-    return '\n'.join(processed_lines)
-
-def parse_summary(summary: str):
-    file_pattern = re.compile(r"##\s+File:\s+([\w./-]+)\n\n.*?###\s+Code\n\n```(\w+)\n(.*?)```", re.DOTALL)
-    files = file_pattern.findall(summary)
-    return [{'path': f[0], 'language': f[1], 'content': f[2]} for f in files]
-
-def update_repo(files: list, repo_path: Path):
-    for file in files:
-        path = file['path']
-        content = file['content']
-        language = file['language']
-
-        file_path = repo_path / path
-        if language.strip().startswith("deleted"):
-            if file_path.exists():
-                file_path.unlink()
-        else:
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(file_path, 'w') as f:
-                f.write(content.strip())
+# ... (previous code remains the same)
 
 def create_pull_request(repo_path: Path, github_token: str):
     try:
         # Set up Git configuration
-        subprocess.run(["git", "config", "user.name", "GitHub Actions"], cwd=repo_path, check=True)
-        subprocess.run(["git", "config", "user.email", "actions@github.com"], cwd=repo_path, check=True)
+        subprocess.run(["git", "config", "user.name", "GitHub Actions"], cwd=repo_path, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.email", "actions@github.com"], cwd=repo_path, check=True, capture_output=True, text=True)
+
+        # Check if there are any changes
+        status_output = subprocess.check_output(["git", "status", "--porcelain"], cwd=repo_path, text=True)
+        if not status_output.strip():
+            return "No changes to commit"
 
         # Create a new branch
         branch_name = f"update-{int(time.time())}"
-        subprocess.run(["git", "checkout", "-b", branch_name], cwd=repo_path, check=True)
+        subprocess.run(["git", "checkout", "-b", branch_name], cwd=repo_path, check=True, capture_output=True, text=True)
 
         # Commit changes
-        subprocess.run(["git", "add", "."], cwd=repo_path, check=True)
-        subprocess.run(["git", "commit", "-m", "Update repository"], cwd=repo_path, check=True)
+        subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "commit", "-m", "Update repository"], cwd=repo_path, check=True, capture_output=True, text=True)
 
         # Push changes
         remote_url = subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=repo_path, text=True).strip()
         auth_remote = re.sub(r"https://", f"https://x-access-token:{github_token}@", remote_url)
-        subprocess.run(["git", "push", "-u", auth_remote, branch_name], cwd=repo_path, check=True)
+        push_result = subprocess.run(["git", "push", "-u", auth_remote, branch_name], cwd=repo_path, capture_output=True, text=True)
+        if push_result.returncode != 0:
+            raise subprocess.CalledProcessError(push_result.returncode, push_result.args, push_result.stdout, push_result.stderr)
 
         # Create pull request using GitHub CLI
-        subprocess.run(["gh", "auth", "login", "--with-token"], input=github_token, text=True, check=True)
-        pr_output = subprocess.check_output(["gh", "pr", "create", "--title", "Update repository", "--body", "Automated update"], cwd=repo_path, text=True)
+        auth_result = subprocess.run(["gh", "auth", "login", "--with-token"], input=github_token, text=True, capture_output=True)
+        if auth_result.returncode != 0:
+            raise subprocess.CalledProcessError(auth_result.returncode, auth_result.args, auth_result.stdout, auth_result.stderr)
+
+        pr_result = subprocess.run(["gh", "pr", "create", "--title", "Update repository", "--body", "Automated update"], cwd=repo_path, capture_output=True, text=True)
+        if pr_result.returncode != 0:
+            raise subprocess.CalledProcessError(pr_result.returncode, pr_result.args, pr_result.stdout, pr_result.stderr)
         
-        return pr_output.strip()
+        return pr_result.stdout.strip()
     except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Error creating pull request: {e.stderr}")
+        error_message = f"Command '{e.cmd}' returned non-zero exit status {e.returncode}.\nStdout: {e.stdout}\nStderr: {e.stderr}"
+        logging.error(error_message)
+        raise HTTPException(status_code=500, detail=error_message)
+    except Exception as e:
+        error_message = f"Unexpected error: {str(e)}"
+        logging.error(error_message)
+        raise HTTPException(status_code=500, detail=error_message)
 
-def get_cached_repo(git_url: str) -> Path:
-    if git_url in repo_cache:
-        cache_info = repo_cache[git_url]
-        if time.time() - cache_info['timestamp'] < CACHE_EXPIRATION:
-            return cache_info['path']
-        else:
-            shutil.rmtree(cache_info['path'])
-            del repo_cache[git_url]
-    
-    repo_path = Path(tempfile.mkdtemp()) / "repo"
-    clone_repo(git_url, repo_path)
-    repo_cache[git_url] = {'path': repo_path, 'timestamp': time.time()}
-    return repo_path
-
-def clean_old_repos(background_tasks: BackgroundTasks):
-    def cleanup():
-        current_time = time.time()
-        for git_url, cache_info in list(repo_cache.items()):
-            if current_time - cache_info['timestamp'] >= CACHE_EXPIRATION:
-                shutil.rmtree(cache_info['path'])
-                del repo_cache[git_url]
-    
-    background_tasks.add_task(cleanup)
-
-@app.get("/repo")
-async def get_repo_summary(repo_request: RepoRequest, background_tasks: BackgroundTasks):
-    clean_old_repos(background_tasks)
-    repo_path = get_cached_repo(repo_request.git_url)
-    summary = await run_code2prompt(repo_path)
-    return {"summary": summary}
+# ... (rest of the code remains the same)
 
 @app.post("/repo")
 async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background_tasks: BackgroundTasks):
@@ -145,9 +69,13 @@ async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background
     files = parse_summary(pr_request.summary)
     update_repo(files, repo_path)
     
-    pr_url = create_pull_request(repo_path, pr_request.github_token)
-    return {"pull_request_url": pr_url}
+    try:
+        pr_url = create_pull_request(repo_path, pr_request.github_token)
+        return {"pull_request_url": pr_url}
+    except HTTPException as e:
+        return {"error": e.detail}
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
