@@ -40,7 +40,24 @@ async def run_code2prompt(clone_dir: Path):
     stdout, stderr = await process.communicate()
     if process.returncode != 0:
         raise HTTPException(status_code=500, detail=f"Error running code2prompt: {stderr.decode()}")
-    return stdout.decode()
+    
+    # Process the output to use relative paths
+    output = stdout.decode()
+    return process_relative_paths(output, clone_dir)
+
+def process_relative_paths(output: str, base_path: Path) -> str:
+    lines = output.split('\n')
+    processed_lines = []
+    for line in lines:
+        if line.startswith("- ") and base_path.as_posix() in line:
+            relative_path = Path(line.split(base_path.as_posix())[-1].strip()).as_posix()
+            processed_lines.append(f"- {relative_path}")
+        elif "## File: " in line and base_path.as_posix() in line:
+            relative_path = Path(line.split(base_path.as_posix())[-1].strip()).as_posix()
+            processed_lines.append(f"## File: {relative_path}")
+        else:
+            processed_lines.append(line)
+    return '\n'.join(processed_lines)
 
 def parse_summary(summary: str):
     file_pattern = re.compile(r"##\s+File:\s+([\w./-]+)\n\n.*?###\s+Code\n\n```(\w+)\n(.*?)```", re.DOTALL)
