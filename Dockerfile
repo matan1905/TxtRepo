@@ -8,15 +8,15 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     git \
     curl \
-    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
+# Install pipx
+RUN python -m pip install --user pipx
+RUN python -m pipx ensurepath
+ENV PATH="/root/.local/bin:${PATH}"
 
-# Install code2prompt
-RUN cargo install code2prompt
+# Install code2prompt using pipx
+RUN pipx install code2prompt
 
 # Install GitHub CLI
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
