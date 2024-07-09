@@ -68,7 +68,7 @@ def process_relative_paths(output: str, base_path: Path) -> str:
 
 
 def parse_summary(summary: str):
-    file_pattern = re.compile(r"##\s+File:\s+([\w./-]+)\n\n.*?###\s+Code\n\n```(\w+)\n(.*?)```", re.DOTALL)
+    file_pattern = re.compile(r"##\s+File:\s+([\w./-]+)\s+.*?###\s+Code\s+```(\w*)\n(.*?)```", re.DOTALL)
     files = file_pattern.findall(summary)
     return [{'path': f[0].lstrip('/'), 'language': f[1], 'content': f[2]} for f in files]
 
@@ -83,6 +83,13 @@ def get_safe_path(repo_path: Path, file_path: str) -> Path:
     if not any(str(full_path).startswith(str(parent)) for parent in repo_parents):
         logging.warning(f"Attempted to access path outside repo: {full_path}")
         raise HTTPException(status_code=400, detail=f"Invalid file path: {file_path}")
+
+    logging.info(f"repo_path: {repo_path}")
+    logging.info(f"file_path: {file_path}")
+    logging.info(f"normalized_path: {normalized_path}")
+    logging.info(f"full_path: {full_path}")
+    logging.info(f"repo_parents: {repo_parents}")
+
     return full_path
 
 
@@ -123,6 +130,7 @@ def create_pull_request(repo_path: Path, github_token: str):
         # Check if there are any changes
         status_output = subprocess.check_output(["git", "status", "--porcelain"], cwd=repo_path, text=True)
         if not status_output.strip():
+            logging.info("No changes to commit")
             return "No changes to commit"
 
         # Create a new branch
@@ -135,9 +143,12 @@ def create_pull_request(repo_path: Path, github_token: str):
         subprocess.run(["git", "commit", "-m", "Update repository"], cwd=repo_path, check=True, capture_output=True,
                        text=True)
 
-        # Push changes
+        # Get the remote URL and add the token
         remote_url = subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=repo_path, text=True).strip()
         auth_remote = re.sub(r"https://", f"https://x-access-token:{github_token}@", remote_url)
+
+        # Push changes
+        logging.info(f"Pushing changes to branch: {branch_name}")
         push_result = subprocess.run(["git", "push", "-u", auth_remote, branch_name], cwd=repo_path,
                                      capture_output=True, text=True)
         if push_result.returncode != 0:
@@ -145,18 +156,22 @@ def create_pull_request(repo_path: Path, github_token: str):
                                                 push_result.stderr)
 
         # Create pull request using GitHub CLI
+        logging.info("Authenticating with GitHub CLI")
         auth_result = subprocess.run(["gh", "auth", "login", "--with-token"], input=github_token, text=True,
                                      capture_output=True)
         if auth_result.returncode != 0:
             raise subprocess.CalledProcessError(auth_result.returncode, auth_result.args, auth_result.stdout,
                                                 auth_result.stderr)
 
-        pr_result = subprocess.run(["gh", "pr", "create", "--title", "Update repository", "--body", "Automated update"],
-                                   cwd=repo_path, capture_output=True, text=True)
+        logging.info("Creating pull request")
+        pr_result = subprocess.run(
+            ["gh", "pr", "create", "--title", "Update repository", "--body", "Automated update", "--head", branch_name],
+            cwd=repo_path, capture_output=True, text=True)
         if pr_result.returncode != 0:
             raise subprocess.CalledProcessError(pr_result.returncode, pr_result.args, pr_result.stdout,
                                                 pr_result.stderr)
 
+        logging.info("Pull request created successfully")
         return pr_result.stdout.strip()
     except subprocess.CalledProcessError as e:
         error_message = f"Command '{e.cmd}' returned non-zero exit status {e.returncode}.\nStdout: {e.stdout}\nStderr: {e.stderr}"
