@@ -17,6 +17,7 @@ app = FastAPI()
 # Cache to store cloned repositories
 repo_cache: Dict[str, Dict[str, Any]] = {}
 CACHE_EXPIRATION = 3600  # 1 hour
+REPO_BASE_DIR = Path("/tmp/repos")  # New base directory for repositories
 
 class RepoRequest(BaseModel):
     git_url: str
@@ -77,8 +78,12 @@ def update_repo(files: list, repo_path: Path):
                 file_path.unlink()
         else:
             file_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(file_path, 'w') as f:
-                f.write(content.strip())
+            try:
+                with open(file_path, 'w') as f:
+                    f.write(content.strip())
+            except Exception as e:
+                logging.error(f"Error writing file {file_path}: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Error writing file {file_path}: {str(e)}")
 
 def create_pull_request(repo_path: Path, github_token: str):
     try:
@@ -134,7 +139,8 @@ def get_cached_repo(git_url: str) -> Path:
             shutil.rmtree(cache_info['path'])
             del repo_cache[git_url]
     
-    repo_path = Path(tempfile.mkdtemp()) / "repo"
+    repo_path = REPO_BASE_DIR / f"repo_{int(time.time())}"
+    repo_path.mkdir(parents=True, exist_ok=True)
     clone_repo(git_url, repo_path)
     repo_cache[git_url] = {'path': repo_path, 'timestamp': time.time()}
     return repo_path
@@ -172,5 +178,6 @@ async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    REPO_BASE_DIR.mkdir(parents=True, exist_ok=True)
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
