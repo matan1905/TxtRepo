@@ -13,11 +13,15 @@ import time
 import asyncio
 from typing import Dict, Any
 import logging
+from fastapi.templating import Jinja2Templates
 
 app = FastAPI()
 
 # Mount the static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Set up Jinja2 templates
+templates = Jinja2Templates(directory=".")
 
 # Cache to store cloned repositories
 repo_cache: Dict[str, Dict[str, Any]] = {}
@@ -36,10 +40,8 @@ class PullRequestRequest(BaseModel):
 # ... (keep all other functions unchanged)
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root():
-    with open("index.html", "r") as f:
-        content = f.read()
-    return content
+async def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/repo")
 async def get_repo_summary(repo_request: RepoRequest, background_tasks: BackgroundTasks, branch: str = Query("main", description="Branch to fetch")):
