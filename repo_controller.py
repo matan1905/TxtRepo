@@ -136,34 +136,6 @@ def parse_summary(summary: str, repo_path: Path):
 def parse_dsl(dsl_string: str) -> DslInstruction:
     return DslInstructionFactory.create(dsl_string)
 
-def update_repo(files: list, repo_path: Path):
-    for file in files:
-        path = file['path']
-        content = file['content']
-        dsl_instruction = file['dsl']
-
-        try:
-            file_path = get_safe_path(repo_path, path)
-            logging.info(f"Processing file: {file_path}")
-
-            if dsl_instruction:
-                with open(file_path, 'r') as f:
-                    lines = f.readlines()
-                success, message = dsl_instruction.apply(file_path, content, lines)
-                if success:
-                    with open(file_path, 'w') as f:
-                        f.writelines(lines)
-                    logging.info(message)
-                else:
-                    logging.warning(message)
-            else:
-                file_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(file_path, 'w') as f:
-                    f.write(content.strip())
-                logging.info(f"Updated file: {file_path}")
-        except Exception as e:
-            logging.error(f"Error processing file {path}: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error processing file {path}: {str(e)}")
 
 
 def get_safe_path(repo_path: Path, file_path: str) -> Path:
@@ -195,37 +167,22 @@ def update_repo(files: list, repo_path: Path):
     for file in files:
         path = file['path']
         content = file['content']
-        dsl = file['dsl']
+        dsl_instruction = file['dsl']
 
         try:
             file_path = get_safe_path(repo_path, path)
             logging.info(f"Processing file: {file_path}")
 
-            if dsl.get('delete-file', False):
-                if file_path.exists():
-                    file_path.unlink()
-                    logging.info(f"Deleted file: {file_path}")
-                else:
-                    logging.warning(f"Attempted to delete non-existent file: {file_path}")
-            elif 'delete-lines' in dsl or 'replace-lines' in dsl:
-                start, end = dsl.get('delete-lines') or dsl.get('replace-lines')
+            if dsl_instruction:
                 with open(file_path, 'r') as f:
                     lines = f.readlines()
-                if 'replace-lines' in dsl:
-                    lines[start-1:end] = [content + '\n']
+                success, message = dsl_instruction.apply(file_path, content, lines)
+                if success:
+                    with open(file_path, 'w') as f:
+                        f.writelines(lines)
+                    logging.info(message)
                 else:
-                    del lines[start-1:end]
-                with open(file_path, 'w') as f:
-                    f.writelines(lines)
-                logging.info(f"Modified lines {start}-{end} in file: {file_path}")
-            elif 'inject-at-line' in dsl:
-                line_number = dsl['inject-at-line']
-                with open(file_path, 'r') as f:
-                    lines = f.readlines()
-                lines.insert(line_number - 1, content + '\n')
-                with open(file_path, 'w') as f:
-                    f.writelines(lines)
-                logging.info(f"Injected content at line {line_number} in file: {file_path}")
+                    logging.warning(message)
             else:
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(file_path, 'w') as f:
