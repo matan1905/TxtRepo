@@ -1,3 +1,5 @@
+from dsl.factory import DslInstructionFactory
+from dsl.base import DslInstruction
 import os
 import subprocess
 import tempfile
@@ -131,24 +133,37 @@ def parse_summary(summary: str, repo_path: Path):
     return files
 
 
-def parse_dsl(dsl_string: str) -> Dict[str, Any]:
-    instructions = {}
+def parse_dsl(dsl_string: str) -> DslInstruction:
+    return DslInstructionFactory.create(dsl_string)
 
-    dsl_commands = {
-        'delete-file': lambda _: {'delete-file': True},
-        'delete-lines-inclusive': lambda args: {'delete-lines': tuple(map(int, args.split('-')))},
-        'replace-lines-inclusive': lambda args: {'replace-lines': tuple(map(int, args.split('-')))},
-        'inject-at-line': lambda arg: {'inject-at-line': int(arg)}
-    }
+def update_repo(files: list, repo_path: Path):
+    for file in files:
+        path = file['path']
+        content = file['content']
+        dsl_instruction = file['dsl']
 
-    if ':' in dsl_string:
-        command, args = dsl_string.split(':', 1)
-        if command in dsl_commands:
-            instructions.update(dsl_commands[command](args))
-    elif dsl_string in dsl_commands:
-        instructions.update(dsl_commands[dsl_string](''))
+        try:
+            file_path = get_safe_path(repo_path, path)
+            logging.info(f"Processing file: {file_path}")
 
-    return instructions
+            if dsl_instruction:
+                with open(file_path, 'r') as f:
+                    lines = f.readlines()
+                success, message = dsl_instruction.apply(file_path, content, lines)
+                if success:
+                    with open(file_path, 'w') as f:
+                        f.writelines(lines)
+                    logging.info(message)
+                else:
+                    logging.warning(message)
+            else:
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(file_path, 'w') as f:
+                    f.write(content.strip())
+                logging.info(f"Updated file: {file_path}")
+        except Exception as e:
+            logging.error(f"Error processing file {path}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error processing file {path}: {str(e)}")
 
 
 def get_safe_path(repo_path: Path, file_path: str) -> Path:
