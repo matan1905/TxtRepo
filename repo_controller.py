@@ -146,12 +146,48 @@ def update_repo(files: list, repo_path: Path):
                     logging.warning(f"Attempted to delete non-existent file: {file_path}")
             else:
                 file_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(file_path, 'w') as f:
-                    f.write(content.strip())
+                if '//... rest of code' in content:
+                    # Handle partial file update
+                    update_partial_file(file_path, content)
+                else:
+                    with open(file_path, 'w') as f:
+                        f.write(content.strip())
                 logging.info(f"Updated file: {file_path}")
         except Exception as e:
             logging.error(f"Error processing file {path}: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error processing file {path}: {str(e)}")
+
+
+def update_partial_file(file_path: Path, new_content: str):
+    if not file_path.exists():
+        with open(file_path, 'w') as f:
+            f.write(new_content.replace('//... rest of code', ''))
+        return
+
+    with open(file_path, 'r') as f:
+        original_content = f.read()
+
+    # Split the new content into lines
+    new_lines = new_content.split('\n')
+
+    # Find the index of the '//... rest of code' line
+    rest_index = new_lines.index('//... rest of code')
+
+    # Get the lines before '//... rest of code'
+    new_start = '\n'.join(new_lines[:rest_index])
+
+    # Find where the new content starts in the original file
+    start_index = original_content.find(new_start)
+
+    if start_index == -1:
+        # If the new content doesn't match the beginning of the file, append it
+        with open(file_path, 'a') as f:
+            f.write('\n' + new_content.replace('//... rest of code', ''))
+    else:
+        # Replace the beginning of the file with the new content
+        updated_content = new_content.replace('//... rest of code', original_content[start_index + len(new_start):])
+        with open(file_path, 'w') as f:
+            f.write(updated_content)
 
 
 def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
