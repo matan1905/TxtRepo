@@ -57,20 +57,22 @@ Your code or content here
 # EndFile /path/to/file
 ```
 
-For multiple files, repeat the format. To delete a file, use the "@delete" suffix:
+For multiple files, repeat the format. To delete a file, use the "::delete" suffix:
 
 ```
-# File /path/to/delete@delete
+# File /path/to/delete::delete
 # EndFile /path/to/delete
 ```
 
-To inject content at a specific line, use the "@injectAtLine:line-number" suffix:
+To inject content at a specific line, use the "::injectAtLine:line-number" suffix:
 
 ```
-# File /path/to/file@injectAtLine:5
+# File /path/to/file::injectAtLine:5
 Content to be injected
 # EndFile /path/to/file
 ```
+
+Note that when using the "injectAtLine" feature, you need to add spaces at the beginning of each line to match the indentation of the surrounding code.
 
 The response will include the URL of the created pull request.
 
@@ -98,7 +100,7 @@ POST /repo
 {
   "git_url": "https://github.com/example/repo.git",
   "github_token": "ghp_your_personal_access_token",
-  "summary": "# File /example/repo/README.md\n# Updated Example Repository\n\nThis is an updated example repository.\n# EndFile /example/repo/README.md\n\n# File /example/repo/main.py@injectAtLine:2\nprint('Hello, Updated World!')\n# EndFile /example/repo/main.py",
+  "summary": "# File /example/repo/README.md\n# Updated Example Repository\n\nThis is an updated example repository.\n# EndFile /example/repo/README.md\n\n# File /example/repo/main.py::injectAtLine:2\n    print('Hello, Updated World!')\n# EndFile /example/repo/main.py",
   "branch": "feature-branch"
 }
 ```
