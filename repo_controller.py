@@ -247,7 +247,7 @@ def clean_old_repos(background_tasks: BackgroundTasks):
 
 
 @app.get("/repo")
-async def get_repo_summary(repo_request: RepoRequest, branch: str = Query("main", description="Branch to fetch"), background_tasks: BackgroundTasks):
+async def get_repo_summary(repo_request: RepoRequest,background_tasks: BackgroundTasks, branch: str = Query("main", description="Branch to fetch")):
     clean_old_repos(background_tasks)
     repo_path = get_cached_repo(repo_request.git_url, branch)
     summary = await run_code2prompt(repo_path, repo_request.git_url)
