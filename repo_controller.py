@@ -13,8 +13,10 @@ import time
 import asyncio
 from typing import Dict, Any, List, Optional
 import logging
+app = FastAPI()
 # Mount the static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -22,7 +24,7 @@ async def root():
         content = f.read()
     return HTMLResponse(content=content)
 
-app = FastAPI()
+
 
 # Cache to store cloned repositories
 repo_cache: Dict[str, Dict[str, Any]] = {}
