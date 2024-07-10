@@ -38,9 +38,9 @@ def extract_repo_info(git_url: str) -> tuple:
     return None, None
 
 
-def clone_repo(git_url: str, clone_dir: Path, branch: str):
+def clone_repo(git_url: str, clone_dir: Path):
     try:
-        subprocess.run(["git", "clone", "-b", branch, git_url, str(clone_dir)], check=True, capture_output=True, text=True)
+        subprocess.run(["git", "clone", git_url, str(clone_dir)], check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=400, detail=f"Error cloning repository: {e.stderr}")
 
@@ -219,35 +219,46 @@ def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
 
 
 def get_cached_repo(git_url: str, branch: str) -> Path:
-    cache_key = f"{git_url}:{branch}"
-    if cache_key in repo_cache:
-        cache_info = repo_cache[cache_key]
+    if git_url in repo_cache:
+        cache_info = repo_cache[git_url]
         if time.time() - cache_info['timestamp'] < CACHE_EXPIRATION:
-            return cache_info['path']
+            repo_path = cache_info['path']
         else:
             shutil.rmtree(cache_info['path'])
-            del repo_cache[cache_key]
+            del repo_cache[git_url]
+            repo_path = REPO_BASE_DIR / f"repo_{int(time.time())}"
+            repo_path.mkdir(parents=True, exist_ok=True)
+            clone_repo(git_url, repo_path)
+    else:
+        repo_path = REPO_BASE_DIR / f"repo_{int(time.time())}"
+        repo_path.mkdir(parents=True, exist_ok=True)
+        clone_repo(git_url, repo_path)
 
-    repo_path = REPO_BASE_DIR / f"repo_{int(time.time())}"
-    repo_path.mkdir(parents=True, exist_ok=True)
-    clone_repo(git_url, repo_path, branch)
-    repo_cache[cache_key] = {'path': repo_path, 'timestamp': time.time()}
+    # Clean all previous changes
+    subprocess.run(["git", "clean", "-fd"], cwd=repo_path, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "reset", "--hard"], cwd=repo_path, check=True, capture_output=True, text=True)
+
+    # Checkout to the specified branch
+    subprocess.run(["git", "checkout", branch], cwd=repo_path, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "pull", "origin", branch], cwd=repo_path, check=True, capture_output=True, text=True)
+
+    repo_cache[git_url] = {'path': repo_path, 'timestamp': time.time()}
     return repo_path
 
 
 def clean_old_repos(background_tasks: BackgroundTasks):
     def cleanup():
         current_time = time.time()
-        for cache_key, cache_info in list(repo_cache.items()):
+        for git_url, cache_info in list(repo_cache.items()):
             if current_time - cache_info['timestamp'] >= CACHE_EXPIRATION:
                 shutil.rmtree(cache_info['path'])
-                del repo_cache[cache_key]
+                del repo_cache[git_url]
 
     background_tasks.add_task(cleanup)
 
 
 @app.get("/repo")
-async def get_repo_summary(repo_request: RepoRequest,background_tasks: BackgroundTasks, branch: str = Query("main", description="Branch to fetch")):
+async def get_repo_summary(repo_request: RepoRequest, background_tasks: BackgroundTasks, branch: str = Query("main", description="Branch to fetch")):
     clean_old_repos(background_tasks)
     repo_path = get_cached_repo(repo_request.git_url, branch)
     summary = await run_code2prompt(repo_path, repo_request.git_url)
