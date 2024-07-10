@@ -13,7 +13,7 @@ TxtRepo is a powerful tool that allows users to interact with GitHub repositorie
 - Add line numbers to source code blocks
 - Specify branch for fetching and creating pull requests
 - Automatic repository caching for improved performance
-- Support for file deletion and content injection at specific lines
+- Support for file deletion, line range deletion, and content injection at specific lines
 
 ## How to Use
 
@@ -57,11 +57,18 @@ Your code or content here
 # EndFile /path/to/file
 ```
 
-For multiple files, repeat the format. To delete a file, use the "::delete" suffix:
+For multiple files, repeat the format. To delete an entire file, use the "::delete-file" suffix:
 
 ```
-# File /path/to/delete::delete
+# File /path/to/delete::delete-file
 # EndFile /path/to/delete
+```
+
+To delete a specific line range, use the "::delete-lines-inclusive:start-end" suffix:
+
+```
+# File /path/to/file::delete-lines-inclusive:5-10
+# EndFile /path/to/file
 ```
 
 To inject content at a specific line, use the "::injectAtLine:line-number" suffix:
@@ -75,42 +82,6 @@ Content to be injected
 Note that when using the "injectAtLine" feature, you need to add spaces at the beginning of each line to match the indentation of the surrounding code.
 
 The response will include the URL of the created pull request.
-
-## Examples
-
-### Getting a Repository Summary
-
-Request:
-```
-GET /repo?git_url=https://github.com/example/repo.git&filter_patterns=*.py&suppress_comments=true
-```
-
-Response:
-```json
-{
-  "summary": "# Code summary\n- /example/repo/main.py\n\n## Files\n\n# File /example/repo/main.py\nprint('Hello, World!')\n# EndFile /example/repo/main.py"
-}
-```
-
-### Creating a Pull Request
-
-Request:
-```json
-POST /repo
-{
-  "git_url": "https://github.com/example/repo.git",
-  "github_token": "ghp_your_personal_access_token",
-  "summary": "# File /example/repo/README.md\n# Updated Example Repository\n\nThis is an updated example repository.\n# EndFile /example/repo/README.md\n\n# File /example/repo/main.py::injectAtLine:2\n    print('Hello, Updated World!')\n# EndFile /example/repo/main.py",
-  "branch": "feature-branch"
-}
-```
-
-Response:
-```json
-{
-  "pull_request_url": "https://github.com/example/repo/pull/1"
-}
-```
 
 ## Note
 
