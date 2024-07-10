@@ -6,7 +6,7 @@ class InjectAtLineInstruction(DslInstruction):
 
     def apply(self, file_path, content, lines):
         lines.insert(self.line_number - 1, content + '\n')
-        return True, f"Injected content at line {self.line_number}"
+        return lines, f"Injected content at line {self.line_number}"
 
     @classmethod
     def parse(cls, arg):

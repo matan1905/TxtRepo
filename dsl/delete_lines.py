@@ -7,7 +7,7 @@ class DeleteLinesInstruction(DslInstruction):
 
     def apply(self, file_path, content, lines):
         del lines[self.start-1:self.end]
-        return True, f"Deleted lines {self.start}-{self.end}"
+        return lines, f"Deleted lines {self.start}-{self.end}"
 
     @classmethod
     def parse(cls, args):

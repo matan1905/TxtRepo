@@ -176,13 +176,10 @@ def update_repo(files: list, repo_path: Path):
             if dsl_instruction:
                 with open(file_path, 'r') as f:
                     lines = f.readlines()
-                success, message = dsl_instruction.apply(file_path, content, lines)
-                if success:
+                new_lines, message = dsl_instruction.apply(file_path, content, lines)
+                if new_lines:
                     with open(file_path, 'w') as f:
-                        f.writelines(lines)
-                    logging.info(message)
-                else:
-                    logging.warning(message)
+                        f.writelines(new_lines)
             else:
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(file_path, 'w') as f:

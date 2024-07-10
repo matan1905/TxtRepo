@@ -7,7 +7,7 @@ class ReplaceLinesInstruction(DslInstruction):
 
     def apply(self, file_path, content, lines):
         lines[self.start-1:self.end] = [content + '\n']
-        return True, f"Replaced lines {self.start}-{self.end}"
+        return lines, f"Replaced lines {self.start}-{self.end}"
 
     @classmethod
     def parse(cls, args):
