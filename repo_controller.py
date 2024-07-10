@@ -93,7 +93,7 @@ def process_relative_paths(output: str, base_path: Path, git_url: str) -> str:
 
 
 def parse_summary(summary: str, repo_path: Path):
-    file_pattern = re.compile(r'# File (.*?)(?:::.*?)?\n(.*?)# EndFile \1', re.DOTALL)
+    file_pattern = re.compile(r'# File (.*?)(::.*?)?\n(.*?)# EndFile \1', re.DOTALL)
     files = []
     last_end = 0
 
@@ -102,7 +102,8 @@ def parse_summary(summary: str, repo_path: Path):
             continue  # Skip nested matches
 
         path = match.group(1).strip()
-        content = match.group(2).strip()
+        command = match.group(2) and match.group(2).strip()
+        content = match.group(3).strip()
         last_end = match.end()
 
         # Remove the friendly base path if present
@@ -112,9 +113,8 @@ def parse_summary(summary: str, repo_path: Path):
 
         # Parse the DSL instructions
         dsl_instructions = {}
-        if '::' in path:
-            path, dsl_string = path.split('::', 1)
-            dsl_instructions = parse_dsl(dsl_string)
+        if command:
+            dsl_instructions = parse_dsl(command[2:])
 
         files.append({'path': path, 'content': content, 'dsl': dsl_instructions})
 
