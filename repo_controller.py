@@ -135,10 +135,10 @@ def parse_dsl(dsl_string: str) -> Dict[str, Any]:
     instructions = {}
 
     dsl_commands = {
-        'delete-file': lambda _: {'delete_file': True},
-        'delete-lines-inclusive': lambda args: {'delete_lines': tuple(map(int, args.split('-')))},
-        'replace-lines-inclusive': lambda args: {'replace_lines': tuple(map(int, args.split('-')))},
-        'inject-at-line': lambda arg: {'inject_at_line': int(arg)}
+        'delete-file': lambda _: {'delete-file': True},
+        'delete-lines-inclusive': lambda args: {'delete-lines': tuple(map(int, args.split('-')))},
+        'replace-lines-inclusive': lambda args: {'replace-lines': tuple(map(int, args.split('-')))},
+        'inject-at-line': lambda arg: {'inject-at-line': int(arg)}
     }
 
     if ':' in dsl_string:
@@ -186,25 +186,25 @@ def update_repo(files: list, repo_path: Path):
             file_path = get_safe_path(repo_path, path)
             logging.info(f"Processing file: {file_path}")
 
-            if dsl.get('delete_file', False):
+            if dsl.get('delete-file', False):
                 if file_path.exists():
                     file_path.unlink()
                     logging.info(f"Deleted file: {file_path}")
                 else:
                     logging.warning(f"Attempted to delete non-existent file: {file_path}")
-            elif 'delete_lines' in dsl or 'replace_lines' in dsl:
-                start, end = dsl.get('delete_lines') or dsl.get('replace_lines')
+            elif 'delete-lines' in dsl or 'replace-lines' in dsl:
+                start, end = dsl.get('delete-lines') or dsl.get('replace-lines')
                 with open(file_path, 'r') as f:
                     lines = f.readlines()
-                if 'replace_lines' in dsl:
+                if 'replace-lines' in dsl:
                     lines[start-1:end] = [content + '\n']
                 else:
                     del lines[start-1:end]
                 with open(file_path, 'w') as f:
                     f.writelines(lines)
                 logging.info(f"Modified lines {start}-{end} in file: {file_path}")
-            elif 'inject_at_line' in dsl:
-                line_number = dsl['inject_at_line']
+            elif 'inject-at-line' in dsl:
+                line_number = dsl['inject-at-line']
                 with open(file_path, 'r') as f:
                     lines = f.readlines()
                 lines.insert(line_number - 1, content + '\n')
@@ -326,6 +326,18 @@ async def get_repo_summary(
         suppress_comments: bool = Query(False, description="Strip comments from the code files"),
         line_number: bool = Query(False, description="Add line numbers to source code blocks")
 ):
+    clean_old_repos(background_tasks)
+    repo_path = get_cached_repo(repo_request.git_url, branch)
+    summary = await run_code2prompt(
+        repo_path,
+        repo_request.git_url,
+        filter_patterns,
+        exclude_patterns,
+        case_sensitive,
+        suppress_comments,
+        line_number
+    )
+    return {"summary": summary}
 def clean_old_repos(background_tasks: BackgroundTasks):
     def cleanup():
         current_time = time.time()
