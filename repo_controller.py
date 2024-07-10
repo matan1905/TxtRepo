@@ -9,7 +9,7 @@ from pydantic import BaseModel
 import shutil
 import time
 import asyncio
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 import logging
 
 app = FastAPI()
@@ -45,9 +45,24 @@ def clone_repo(git_url: str, clone_dir: Path):
         raise HTTPException(status_code=400, detail=f"Error cloning repository: {e.stderr}")
 
 
-async def run_code2prompt(clone_dir: Path, git_url: str):
+async def run_code2prompt(clone_dir: Path, git_url: str, filter_patterns: Optional[str] = None,
+                          exclude_patterns: Optional[str] = None, case_sensitive: bool = False,
+                          suppress_comments: bool = False, line_number: bool = False):
+    cmd = ["code2prompt", "--path", str(clone_dir), "--template", 'template.j2']
+
+    if filter_patterns:
+        cmd.extend(["--filter", filter_patterns])
+    if exclude_patterns:
+        cmd.extend(["--exclude", exclude_patterns])
+    if case_sensitive:
+        cmd.append("--case-sensitive")
+    if suppress_comments:
+        cmd.append("--suppress-comments")
+    if line_number:
+        cmd.append("--line-number")
+
     process = await asyncio.create_subprocess_exec(
-        "code2prompt", "--path", str(clone_dir), "--template", 'template.j2',
+        *cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )
@@ -78,7 +93,7 @@ def process_relative_paths(output: str, base_path: Path, git_url: str) -> str:
 
 
 def parse_summary(summary: str, repo_path: Path):
-    file_pattern = re.compile(r'# File (.*?)\n(.*?)# EndFile \1', re.DOTALL)
+    file_pattern = re.compile(r'# File (.*?)(?:@.*?)?\n(.*?)# EndFile \1', re.DOTALL)
     files = []
     last_end = 0
 
@@ -95,12 +110,27 @@ def parse_summary(summary: str, repo_path: Path):
         if len(path_parts) > 2 and path_parts[0] == '':
             path = '/'.join(path_parts[3:])
 
-        if path.startswith("DELETED:"):
-            files.append({'path': path[8:].strip(), 'content': '', 'should_delete': True})
-        else:
-            files.append({'path': path, 'content': content, 'should_delete': False})
+        # Parse the mini DSL
+        dsl_instructions = {}
+        if '@' in path:
+            path, dsl_string = path.split('@', 1)
+            dsl_instructions = parse_dsl(dsl_string)
+
+        files.append({'path': path, 'content': content, 'dsl': dsl_instructions})
 
     return files
+
+
+def parse_dsl(dsl_string: str) -> Dict[str, Any]:
+    instructions = {}
+
+    if dsl_string == "delete":
+        instructions['delete'] = True
+    elif dsl_string.startswith("injectAtLine:"):
+        _, line_number = dsl_string.split(':')
+        instructions['inject_at_line'] = int(line_number)
+
+    return instructions
 
 
 def get_safe_path(repo_path: Path, file_path: str) -> Path:
@@ -132,18 +162,26 @@ def update_repo(files: list, repo_path: Path):
     for file in files:
         path = file['path']
         content = file['content']
-        should_delete = file['should_delete']
+        dsl = file['dsl']
 
         try:
             file_path = get_safe_path(repo_path, path)
             logging.info(f"Processing file: {file_path}")
 
-            if should_delete:
+            if dsl.get('delete', False):
                 if file_path.exists():
                     file_path.unlink()
                     logging.info(f"Deleted file: {file_path}")
                 else:
                     logging.warning(f"Attempted to delete non-existent file: {file_path}")
+            elif 'inject_at_line' in dsl:
+                line_number = dsl['inject_at_line']
+                with open(file_path, 'r') as f:
+                    lines = f.readlines()
+                lines.insert(line_number - 1, content + '\n')
+                with open(file_path, 'w') as f:
+                    f.writelines(lines)
+                logging.info(f"Injected content at line {line_number} in file: {file_path}")
             else:
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(file_path, 'w') as f:
@@ -200,7 +238,8 @@ def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
 
         logging.info("Creating pull request")
         pr_result = subprocess.run(
-            ["gh", "pr", "create", "--title", "Update repository", "--body", "Automated update", "--head", branch_name, "--base", source_branch],
+            ["gh", "pr", "create", "--title", "Update repository", "--body", "Automated update", "--head", branch_name,
+             "--base", source_branch],
             cwd=repo_path, capture_output=True, text=True)
         if pr_result.returncode != 0:
             raise subprocess.CalledProcessError(pr_result.returncode, pr_result.args, pr_result.stdout,
@@ -258,12 +297,30 @@ def clean_old_repos(background_tasks: BackgroundTasks):
 
 
 @app.get("/repo")
-async def get_repo_summary(repo_request: RepoRequest, background_tasks: BackgroundTasks, branch: str = Query("main", description="Branch to fetch")):
+async def get_repo_summary(
+        repo_request: RepoRequest,
+        background_tasks: BackgroundTasks,
+        branch: str = Query("main", description="Branch to fetch"),
+        filter_patterns: Optional[str] = Query(None,
+                                               description="Comma-separated filter patterns to include files (e.g., '*.py,*.js')"),
+        exclude_patterns: Optional[str] = Query(None,
+                                                description="Comma-separated patterns to exclude files (e.g., '*.txt,*.md')"),
+        case_sensitive: bool = Query(False, description="Perform case-sensitive pattern matching"),
+        suppress_comments: bool = Query(False, description="Strip comments from the code files"),
+        line_number: bool = Query(False, description="Add line numbers to source code blocks")
+):
     clean_old_repos(background_tasks)
     repo_path = get_cached_repo(repo_request.git_url, branch)
-    summary = await run_code2prompt(repo_path, repo_request.git_url)
+    summary = await run_code2prompt(
+        repo_path,
+        repo_request.git_url,
+        filter_patterns,
+        exclude_patterns,
+        case_sensitive,
+        suppress_comments,
+        line_number
+    )
     return {"summary": summary}
-
 
 @app.post("/repo")
 async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background_tasks: BackgroundTasks):
