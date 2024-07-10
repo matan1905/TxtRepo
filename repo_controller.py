@@ -30,6 +30,13 @@ class PullRequestRequest(BaseModel):
     summary: str
 
 
+def extract_repo_info(git_url: str) -> tuple:
+    match = re.search(r'github\.com[:/]([^/]+)/([^/]+?)(.git)?$', git_url)
+    if match:
+        return match.group(1), match.group(2)
+    return None, None
+
+
 def clone_repo(git_url: str, clone_dir: Path):
     try:
         subprocess.run(["git", "clone", git_url, str(clone_dir)], check=True, capture_output=True, text=True)
@@ -37,9 +44,9 @@ def clone_repo(git_url: str, clone_dir: Path):
         raise HTTPException(status_code=400, detail=f"Error cloning repository: {e.stderr}")
 
 
-async def run_code2prompt(clone_dir: Path):
+async def run_code2prompt(clone_dir: Path, git_url: str):
     process = await asyncio.create_subprocess_exec(
-        "code2prompt", "--path", str(clone_dir), "--template",'template.j2',
+        "code2prompt", "--path", str(clone_dir), "--template", 'template.j2',
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )
@@ -47,51 +54,63 @@ async def run_code2prompt(clone_dir: Path):
     if process.returncode != 0:
         raise HTTPException(status_code=500, detail=f"Error running code2prompt: {stderr.decode()}")
 
-    # Process the output to use relative paths
     output = stdout.decode()
-    return process_relative_paths(output, clone_dir)
+    return process_relative_paths(output, clone_dir, git_url)
 
 
-def process_relative_paths(output: str, base_path: Path) -> str:
+def process_relative_paths(output: str, base_path: Path, git_url: str) -> str:
+    repo_user, repo_name = extract_repo_info(git_url)
+    friendly_base = f"/{repo_user}/{repo_name}" if repo_user and repo_name else "/unknown/repo"
+
     lines = output.split('\n')
     processed_lines = []
     for line in lines:
-        if line.startswith("- ") and base_path.as_posix() in line:
+        if base_path.as_posix() in line:
             relative_path = Path(line.split(base_path.as_posix())[-1].strip()).as_posix().lstrip('/')
-            processed_lines.append(f"- {relative_path}")
-        elif "## File: " in line and base_path.as_posix() in line:
-            relative_path = Path(line.split(base_path.as_posix())[-1].strip()).as_posix().lstrip('/')
-            processed_lines.append(f"## File: {relative_path}")
+            if line.startswith("- "):
+                processed_lines.append(f"- {friendly_base}/{relative_path}")
+            elif "## File: " in line:
+                processed_lines.append(f"## File: {friendly_base}/{relative_path}")
         else:
             processed_lines.append(line)
     return '\n'.join(processed_lines)
 
 
-def parse_summary(summary: str):
+def parse_summary(summary: str, repo_path: Path):
     file_pattern = re.compile(r'# File (.*?)\n(.*?)# EndFile \1', re.DOTALL)
     files = []
     last_end = 0
 
     for match in file_pattern.finditer(summary):
-        # Check if this match is contained within a previous match
         if match.start() < last_end:
-            continue  # Skip this match as it's nested
+            continue  # Skip nested matches
 
         path = match.group(1).strip()
         content = match.group(2).strip()
         last_end = match.end()
 
+        # Remove the friendly base path if present
+        path_parts = path.split('/')
+        if len(path_parts) > 2 and path_parts[0] == '':
+            path = '/'.join(path_parts[3:])
+
         if path.startswith("DELETED:"):
-            files.append({'path': path[8:].strip(), 'content': '', 'should_delete': True})  # Remove "DELETED:" prefix
+            files.append({'path': path[8:].strip(), 'content': '', 'should_delete': True})
         else:
             files.append({'path': path, 'content': content, 'should_delete': False})
 
     return files
 
+
 def get_safe_path(repo_path: Path, file_path: str) -> Path:
     """Ensure the file path is within the repo directory."""
     normalized_path = os.path.normpath(file_path).lstrip('/')
-    full_path = (repo_path / normalized_path).resolve()
+
+    # If the path doesn't start with the repo_path, prepend it
+    if not normalized_path.startswith(str(repo_path)):
+        full_path = (repo_path / normalized_path).resolve()
+    else:
+        full_path = Path(normalized_path).resolve()
 
     # Check if the resolved path starts with any parent of repo_path
     repo_parents = [repo_path] + list(repo_path.parents)
@@ -229,7 +248,7 @@ def clean_old_repos(background_tasks: BackgroundTasks):
 async def get_repo_summary(repo_request: RepoRequest, background_tasks: BackgroundTasks):
     clean_old_repos(background_tasks)
     repo_path = get_cached_repo(repo_request.git_url)
-    summary = await run_code2prompt(repo_path)
+    summary = await run_code2prompt(repo_path, repo_request.git_url)
     return {"summary": summary}
 
 
@@ -238,7 +257,7 @@ async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background
     clean_old_repos(background_tasks)
     repo_path = get_cached_repo(pr_request.git_url)
 
-    files = parse_summary(pr_request.summary)
+    files = parse_summary(pr_request.summary, repo_path)
     update_repo(files, repo_path)
 
     try:
