@@ -13,6 +13,7 @@ import time
 import asyncio
 from typing import Dict, Any, List, Optional
 import logging
+
 app = FastAPI()
 # Mount the static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -23,7 +24,6 @@ async def root():
     with open("static/index.html", "r") as f:
         content = f.read()
     return HTMLResponse(content=content)
-
 
 
 # Cache to store cloned repositories
@@ -124,9 +124,7 @@ def parse_summary(summary: str, repo_path: Path):
             path = '/'.join(path_parts[3:])
 
         # Parse the DSL instructions
-        dsl_instructions = {}
-        if command:
-            dsl_instructions = parse_dsl(command[2:])
+        dsl_instructions = parse_dsl(command[2:] if command else "")
 
         files.append({'path': path, 'content': content, 'dsl': dsl_instructions})
 
@@ -136,11 +134,19 @@ def parse_summary(summary: str, repo_path: Path):
 def parse_dsl(dsl_string: str) -> Dict[str, Any]:
     instructions = {}
 
-    if dsl_string == "delete":
-        instructions['delete'] = True
-    elif dsl_string.startswith("injectAtLine:"):
-        _, line_number = dsl_string.split(':')
-        instructions['inject_at_line'] = int(line_number)
+    dsl_commands = {
+        'delete-file': lambda _: {'delete_file': True},
+        'delete-lines-inclusive': lambda args: {'delete_lines': tuple(map(int, args.split('-')))},
+        'replace-lines-inclusive': lambda args: {'replace_lines': tuple(map(int, args.split('-')))},
+        'inject-at-line': lambda arg: {'inject_at_line': int(arg)}
+    }
+
+    if ':' in dsl_string:
+        command, args = dsl_string.split(':', 1)
+        if command in dsl_commands:
+            instructions.update(dsl_commands[command](args))
+    elif dsl_string in dsl_commands:
+        instructions.update(dsl_commands[dsl_string](''))
 
     return instructions
 
@@ -180,12 +186,23 @@ def update_repo(files: list, repo_path: Path):
             file_path = get_safe_path(repo_path, path)
             logging.info(f"Processing file: {file_path}")
 
-            if dsl.get('delete', False):
+            if dsl.get('delete_file', False):
                 if file_path.exists():
                     file_path.unlink()
                     logging.info(f"Deleted file: {file_path}")
                 else:
                     logging.warning(f"Attempted to delete non-existent file: {file_path}")
+            elif 'delete_lines' in dsl or 'replace_lines' in dsl:
+                start, end = dsl.get('delete_lines') or dsl.get('replace_lines')
+                with open(file_path, 'r') as f:
+                    lines = f.readlines()
+                if 'replace_lines' in dsl:
+                    lines[start-1:end] = [content + '\n']
+                else:
+                    del lines[start-1:end]
+                with open(file_path, 'w') as f:
+                    f.writelines(lines)
+                logging.info(f"Modified lines {start}-{end} in file: {file_path}")
             elif 'inject_at_line' in dsl:
                 line_number = dsl['inject_at_line']
                 with open(file_path, 'r') as f:
@@ -296,18 +313,6 @@ def get_cached_repo(git_url: str, branch: str) -> Path:
     repo_cache[git_url] = {'path': repo_path, 'timestamp': time.time()}
     return repo_path
 
-
-def clean_old_repos(background_tasks: BackgroundTasks):
-    def cleanup():
-        current_time = time.time()
-        for git_url, cache_info in list(repo_cache.items()):
-            if current_time - cache_info['timestamp'] >= CACHE_EXPIRATION:
-                shutil.rmtree(cache_info['path'])
-                del repo_cache[git_url]
-
-    background_tasks.add_task(cleanup)
-
-
 @app.get("/repo")
 async def get_repo_summary(
         repo_request: RepoRequest,
@@ -321,18 +326,16 @@ async def get_repo_summary(
         suppress_comments: bool = Query(False, description="Strip comments from the code files"),
         line_number: bool = Query(False, description="Add line numbers to source code blocks")
 ):
-    clean_old_repos(background_tasks)
-    repo_path = get_cached_repo(repo_request.git_url, branch)
-    summary = await run_code2prompt(
-        repo_path,
-        repo_request.git_url,
-        filter_patterns,
-        exclude_patterns,
-        case_sensitive,
-        suppress_comments,
-        line_number
-    )
-    return {"summary": summary}
+def clean_old_repos(background_tasks: BackgroundTasks):
+    def cleanup():
+        current_time = time.time()
+        for git_url, cache_info in list(repo_cache.items()):
+            if current_time - cache_info['timestamp'] >= CACHE_EXPIRATION:
+                shutil.rmtree(cache_info['path'])
+                del repo_cache[git_url]
+
+    background_tasks.add_task(cleanup)
+
 
 @app.post("/repo")
 async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background_tasks: BackgroundTasks):
