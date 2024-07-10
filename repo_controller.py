@@ -36,7 +36,7 @@ class PullRequestRequest(BaseModel):
 # ... (keep all other functions unchanged)
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
+async def read_root():
     with open("index.html", "r") as f:
         content = f.read()
     return content
