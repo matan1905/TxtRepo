@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TxtRepo - Interact with GitHub Repositories</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>TxtRepo</h1>
+    <p>TxtRepo is a tool that allows users to interact with GitHub repositories using a simple API. It provides functionality to retrieve an entire codebase as a single text file and convert a similarly formatted text file into a pull request.</p>
+
+    <h2>Features</h2>
+    <ul>
+        <li>Get a summary of a GitHub repository's contents</li>
+        <li>Create pull requests by providing a formatted text file with changes</li>
+    </ul>
+
+    <h2>How to Use</h2>
+    <h3>Getting a Repository Summary</h3>
+    <p>To get a summary of a repository, send a GET request to the <code>/repo</code> endpoint with the repository's Git URL:</p>
+    <pre>GET /repo?git_url=https://github.com/username/repo.git</pre>
+    <p>The response will include a summary of the repository's contents in a formatted text file.</p>
+
+    <h3>Creating a Pull Request</h3>
+    <p>To create a pull request, send a POST request to the <code>/repo</code> endpoint with the following JSON body:</p>
+    <pre>
+{
+  "git_url": "https://github.com/username/repo.git",
+  "github_token": "your_github_personal_access_token",
+  "summary": "# File /path/to/file\nYour code or content here\n# EndFile /path/to/file"
+}
+    </pre>
+    <p>The <code>summary</code> field should contain the changes you want to make, formatted as follows:</p>
+    <pre>
+# File /path/to/file
+Your code or content here
+# EndFile /path/to/file
+    </pre>
+    <p>For multiple files, repeat the format. To delete a file, use the "DELETED:" prefix:</p>
+    <pre>
+# File DELETED:/path/to/delete
+# EndFile DELETED:/path/to/delete
+    </pre>
+    <p>The response will include the URL of the created pull request.</p>
+
+    <h2>Note</h2>
+    <p>Make sure to keep your GitHub personal access token secure and never share it publicly.</p>
+</body>
+</html>
