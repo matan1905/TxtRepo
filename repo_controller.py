@@ -39,7 +39,7 @@ def clone_repo(git_url: str, clone_dir: Path):
 
 async def run_code2prompt(clone_dir: Path):
     process = await asyncio.create_subprocess_exec(
-        "code2prompt", "--path", str(clone_dir),
+        "code2prompt", "--path", str(clone_dir), "--template",'template.j2',
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )
@@ -68,10 +68,25 @@ def process_relative_paths(output: str, base_path: Path) -> str:
 
 
 def parse_summary(summary: str):
-    file_pattern = re.compile(r"##\s+File:\s+([\w./-]+)\s+.*?###\s+Code\s+```(\w*)\n(.*?)```", re.DOTALL)
-    files = file_pattern.findall(summary)
-    return [{'path': f[0].lstrip('/'), 'language': f[1], 'content': f[2]} for f in files]
+    file_pattern = re.compile(r'# File (.*?)\n(.*?)# EndFile \1', re.DOTALL)
+    files = []
+    last_end = 0
 
+    for match in file_pattern.finditer(summary):
+        # Check if this match is contained within a previous match
+        if match.start() < last_end:
+            continue  # Skip this match as it's nested
+
+        path = match.group(1).strip()
+        content = match.group(2).strip()
+        last_end = match.end()
+
+        if path.startswith("DELETED:"):
+            files.append({'path': path[8:].strip(), 'content': '', 'should_delete': True})  # Remove "DELETED:" prefix
+        else:
+            files.append({'path': path, 'content': content, 'should_delete': False})
+
+    return files
 
 def get_safe_path(repo_path: Path, file_path: str) -> Path:
     """Ensure the file path is within the repo directory."""
@@ -97,13 +112,13 @@ def update_repo(files: list, repo_path: Path):
     for file in files:
         path = file['path']
         content = file['content']
-        language = file['language']
+        should_delete = file['should_delete']
 
         try:
             file_path = get_safe_path(repo_path, path)
             logging.info(f"Processing file: {file_path}")
 
-            if language.strip().startswith("deleted"):
+            if should_delete:
                 if file_path.exists():
                     file_path.unlink()
                     logging.info(f"Deleted file: {file_path}")
