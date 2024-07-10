@@ -27,11 +27,10 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | g
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the current directory contents into the container at /app
-COPY static /app/static
 COPY . /app
 
 # Install Python dependencies
-RUN pip install --no-cache-dir fastapi uvicorn gitpython
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Create a directory for repositories and set permissions
 RUN mkdir -p /tmp/repos && chmod 777 /tmp/repos
@@ -40,4 +39,4 @@ RUN mkdir -p /tmp/repos && chmod 777 /tmp/repos
 EXPOSE 8000
 
 # Run the application when the container launches
-CMD ["uvicorn", "repo_controller:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "routes:app", "--host", "0.0.0.0", "--port", "8000"]
