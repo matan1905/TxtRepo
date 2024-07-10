@@ -6,43 +6,74 @@
     <title>TxtRepo - Interact with GitHub Repositories</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             color: #333;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
+            background-color: #f0f4f8;
         }
-        h1, h2 {
+        h1, h2, h3 {
             color: #2c3e50;
         }
+        h1 {
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
         code {
-            background-color: #f4f4f4;
+            background-color: #e0e7ff;
             padding: 2px 4px;
             border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
         }
         pre {
-            background-color: #f4f4f4;
-            padding: 10px;
+            background-color: #e0e7ff;
+            padding: 15px;
             border-radius: 4px;
             overflow-x: auto;
+            border: 1px solid #bac8ff;
+        }
+        .feature-list {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .feature-list li:before {
+            content: "✓ ";
+            color: #27ae60;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .note {
+            background-color: #ffeaa7;
+            border-left: 5px solid #fdcb6e;
+            padding: 10px;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
     <h1>TxtRepo</h1>
-    <p>TxtRepo is a tool that allows users to interact with GitHub repositories using a simple API. It provides functionality to retrieve an entire codebase as a single text file and convert a similarly formatted text file into a pull request.</p>
+    <p>TxtRepo is a powerful tool that allows users to interact with GitHub repositories using a simple API. It provides functionality to retrieve an entire codebase as a single text file and convert a similarly formatted text file into a pull request.</p>
 
     <h2>Features</h2>
-    <ul>
+    <ul class="feature-list">
         <li>Get a summary of a GitHub repository's contents</li>
         <li>Create pull requests by providing a formatted text file with changes</li>
+        <li>Filter files based on patterns</li>
+        <li>Exclude files based on patterns</li>
+        <li>Case-sensitive pattern matching</li>
+        <li>Option to suppress comments in code files</li>
+        <li>Add line numbers to source code blocks</li>
+        <li>Specify branch for fetching and creating pull requests</li>
+        <li>Automatic repository caching for improved performance</li>
+        <li>Support for file deletion and content injection at specific lines</li>
     </ul>
 
     <h2>How to Use</h2>
     <h3>Getting a Repository Summary</h3>
-    <p>To get a summary of a repository, send a GET request to the <code>/repo</code> endpoint with the repository's Git URL:</p>
-    <pre>GET /repo?git_url=https://github.com/username/repo.git</pre>
+    <p>To get a summary of a repository, send a GET request to the <code>/repo</code> endpoint with the repository's Git URL and optional parameters:</p>
+    <pre>GET /repo?git_url=https://github.com/username/repo.git&branch=main&filter_patterns=*.py,*.js&exclude_patterns=*.txt,*.md&case_sensitive=false&suppress_comments=false&line_number=false</pre>
     <p>The response will include a summary of the repository's contents in a formatted text file.</p>
 
     <h3>Creating a Pull Request</h3>
@@ -51,7 +82,8 @@
 {
   "git_url": "https://github.com/username/repo.git",
   "github_token": "your_github_personal_access_token",
-  "summary": "# File /path/to/file\nYour code or content here\n# EndFile /path/to/file"
+  "summary": "# File /path/to/file\nYour code or content here\n# EndFile /path/to/file",
+  "branch": "main"
 }
     </pre>
     <p>The <code>summary</code> field should contain the changes you want to make, formatted as follows:</p>
@@ -60,14 +92,22 @@
 Your code or content here
 # EndFile /path/to/file
     </pre>
-    <p>For multiple files, repeat the format. To delete a file, use the "DELETED:" prefix:</p>
+    <p>For multiple files, repeat the format. To delete a file, use the "@delete" suffix:</p>
     <pre>
-# File DELETED:/path/to/delete
-# EndFile DELETED:/path/to/delete
+# File /path/to/delete@delete
+# EndFile /path/to/delete
+    </pre>
+    <p>To inject content at a specific line, use the "@injectAtLine:line-number" suffix:</p>
+    <pre>
+# File /path/to/file@injectAtLine:5
+Content to be injected
+# EndFile /path/to/file
     </pre>
     <p>The response will include the URL of the created pull request.</p>
 
-    <h2>Note</h2>
-    <p>Make sure to keep your GitHub personal access token secure and never share it publicly.</p>
+    <div class="note">
+        <h3>Note</h3>
+        <p>Make sure to keep your GitHub personal access token secure and never share it publicly.</p>
+    </div>
 </body>
 </html>
