@@ -4,7 +4,7 @@ import tempfile
 import sys
 import re
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
 from pydantic import BaseModel
 import shutil
 import time
@@ -28,6 +28,7 @@ class PullRequestRequest(BaseModel):
     git_url: str
     github_token: str
     summary: str
+    branch: str = "main"
 
 
 def extract_repo_info(git_url: str) -> tuple:
@@ -37,9 +38,9 @@ def extract_repo_info(git_url: str) -> tuple:
     return None, None
 
 
-def clone_repo(git_url: str, clone_dir: Path):
+def clone_repo(git_url: str, clone_dir: Path, branch: str):
     try:
-        subprocess.run(["git", "clone", git_url, str(clone_dir)], check=True, capture_output=True, text=True)
+        subprocess.run(["git", "clone", "-b", branch, git_url, str(clone_dir)], check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=400, detail=f"Error cloning repository: {e.stderr}")
 
@@ -153,7 +154,7 @@ def update_repo(files: list, repo_path: Path):
             raise HTTPException(status_code=500, detail=f"Error processing file {path}: {str(e)}")
 
 
-def create_pull_request(repo_path: Path, github_token: str):
+def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
     try:
         # Set up Git configuration
         subprocess.run(["git", "config", "user.name", "GitHub Actions"], cwd=repo_path, check=True, capture_output=True,
@@ -199,7 +200,7 @@ def create_pull_request(repo_path: Path, github_token: str):
 
         logging.info("Creating pull request")
         pr_result = subprocess.run(
-            ["gh", "pr", "create", "--title", "Update repository", "--body", "Automated update", "--head", branch_name],
+            ["gh", "pr", "create", "--title", "Update repository", "--body", "Automated update", "--head", branch_name, "--base", source_branch],
             cwd=repo_path, capture_output=True, text=True)
         if pr_result.returncode != 0:
             raise subprocess.CalledProcessError(pr_result.returncode, pr_result.args, pr_result.stdout,
@@ -217,37 +218,38 @@ def create_pull_request(repo_path: Path, github_token: str):
         raise HTTPException(status_code=500, detail=error_message)
 
 
-def get_cached_repo(git_url: str) -> Path:
-    if git_url in repo_cache:
-        cache_info = repo_cache[git_url]
+def get_cached_repo(git_url: str, branch: str) -> Path:
+    cache_key = f"{git_url}:{branch}"
+    if cache_key in repo_cache:
+        cache_info = repo_cache[cache_key]
         if time.time() - cache_info['timestamp'] < CACHE_EXPIRATION:
             return cache_info['path']
         else:
             shutil.rmtree(cache_info['path'])
-            del repo_cache[git_url]
+            del repo_cache[cache_key]
 
     repo_path = REPO_BASE_DIR / f"repo_{int(time.time())}"
     repo_path.mkdir(parents=True, exist_ok=True)
-    clone_repo(git_url, repo_path)
-    repo_cache[git_url] = {'path': repo_path, 'timestamp': time.time()}
+    clone_repo(git_url, repo_path, branch)
+    repo_cache[cache_key] = {'path': repo_path, 'timestamp': time.time()}
     return repo_path
 
 
 def clean_old_repos(background_tasks: BackgroundTasks):
     def cleanup():
         current_time = time.time()
-        for git_url, cache_info in list(repo_cache.items()):
+        for cache_key, cache_info in list(repo_cache.items()):
             if current_time - cache_info['timestamp'] >= CACHE_EXPIRATION:
                 shutil.rmtree(cache_info['path'])
-                del repo_cache[git_url]
+                del repo_cache[cache_key]
 
     background_tasks.add_task(cleanup)
 
 
 @app.get("/repo")
-async def get_repo_summary(repo_request: RepoRequest, background_tasks: BackgroundTasks):
+async def get_repo_summary(repo_request: RepoRequest, branch: str = Query("main", description="Branch to fetch"), background_tasks: BackgroundTasks):
     clean_old_repos(background_tasks)
-    repo_path = get_cached_repo(repo_request.git_url)
+    repo_path = get_cached_repo(repo_request.git_url, branch)
     summary = await run_code2prompt(repo_path, repo_request.git_url)
     return {"summary": summary}
 
@@ -255,13 +257,13 @@ async def get_repo_summary(repo_request: RepoRequest, background_tasks: Backgrou
 @app.post("/repo")
 async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background_tasks: BackgroundTasks):
     clean_old_repos(background_tasks)
-    repo_path = get_cached_repo(pr_request.git_url)
+    repo_path = get_cached_repo(pr_request.git_url, pr_request.branch)
 
     files = parse_summary(pr_request.summary, repo_path)
     update_repo(files, repo_path)
 
     try:
-        pr_url = create_pull_request(repo_path, pr_request.github_token)
+        pr_url = create_pull_request(repo_path, pr_request.github_token, pr_request.branch)
         return {"pull_request_url": pr_url}
     except HTTPException as e:
         return {"error": e.detail}
