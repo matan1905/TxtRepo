@@ -9,7 +9,7 @@ from pydantic import BaseModel
 import shutil
 import time
 import asyncio
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import logging
 
 app = FastAPI()
@@ -22,13 +22,14 @@ REPO_BASE_DIR = Path("/tmp/repos")  # Base directory for repositories
 
 class RepoRequest(BaseModel):
     git_url: str
+    branch: Optional[str] = "main"
 
 
 class PullRequestRequest(BaseModel):
     git_url: str
     github_token: str
     summary: str
-    branch: str = "main"
+    branch: Optional[str] = "main"
 
 
 def extract_repo_info(git_url: str) -> tuple:
@@ -154,7 +155,7 @@ def update_repo(files: list, repo_path: Path):
             raise HTTPException(status_code=500, detail=f"Error processing file {path}: {str(e)}")
 
 
-def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
+def create_pull_request(repo_path: Path, github_token: str, base_branch: str):
     try:
         # Set up Git configuration
         subprocess.run(["git", "config", "user.name", "GitHub Actions"], cwd=repo_path, check=True, capture_output=True,
@@ -200,7 +201,7 @@ def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
 
         logging.info("Creating pull request")
         pr_result = subprocess.run(
-            ["gh", "pr", "create", "--title", "Update repository", "--body", "Automated update", "--head", branch_name, "--base", source_branch],
+            ["gh", "pr", "create", "--title", "Update repository", "--body", "Automated update", "--head", branch_name, "--base", base_branch],
             cwd=repo_path, capture_output=True, text=True)
         if pr_result.returncode != 0:
             raise subprocess.CalledProcessError(pr_result.returncode, pr_result.args, pr_result.stdout,
@@ -247,9 +248,9 @@ def clean_old_repos(background_tasks: BackgroundTasks):
 
 
 @app.get("/repo")
-async def get_repo_summary(repo_request: RepoRequest, branch: str = Query("main", description="Branch to fetch"), background_tasks: BackgroundTasks):
+async def get_repo_summary(repo_request: RepoRequest, background_tasks: BackgroundTasks):
     clean_old_repos(background_tasks)
-    repo_path = get_cached_repo(repo_request.git_url, branch)
+    repo_path = get_cached_repo(repo_request.git_url, repo_request.branch)
     summary = await run_code2prompt(repo_path, repo_request.git_url)
     return {"summary": summary}
 
