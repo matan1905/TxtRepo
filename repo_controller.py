@@ -133,6 +133,9 @@ def parse_summary(summary: str, repo_path: Path):
     return files
 
 
+elif dsl_string.startswith("move:"):
+        _, new_path = dsl_string.split(':')
+        instructions['move'] = new_path.strip()
 def parse_dsl(dsl_string: str) -> Dict[str, Any]:
     instructions = {}
 
@@ -197,6 +200,10 @@ def update_repo(files: list, repo_path: Path):
             else:
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(file_path, 'w') as f:
+elif 'move' in dsl:
+                new_path = get_safe_path(repo_path, dsl['move'])
+                file_path.rename(new_path)
+                logging.info(f"Moved file from {file_path} to {new_path}")
                     f.write(content.strip())
                 logging.info(f"Updated file: {file_path}")
         except Exception as e:

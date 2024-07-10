@@ -67,6 +67,7 @@
         <li>Add line numbers to source code blocks</li>
         <li>Specify branch for fetching and creating pull requests</li>
         <li>Automatic repository caching for improved performance</li>
+<li>Move files to a new location</li>
         <li>Support for file deletion and content injection at specific lines</li>
     </ul>
 
@@ -101,6 +102,11 @@ Your code or content here
     <pre>
 # File /path/to/file@injectAtLine:5
 Content to be injected
+<p>To move a file, use the "@move:/new/path" suffix:</p>
+    <pre>
+# File /path/to/file@move:/new/path/to/file
+# EndFile /path/to/file
+    </pre>
 # EndFile /path/to/file
     </pre>
     <p>The response will include the URL of the created pull request.</p>

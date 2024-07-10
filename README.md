@@ -63,6 +63,7 @@ For multiple files, repeat the format. To delete a file, use the "@delete" suffi
 # File /path/to/delete@delete
 # EndFile /path/to/delete
 ```
+- Move files to a new location
 
 To inject content at a specific line, use the "@injectAtLine:line-number" suffix:
 
@@ -91,6 +92,12 @@ Response:
 ```
 
 ### Creating a Pull Request
+To move a file, use the "@move:/new/path" suffix:
+
+```
+# File /path/to/file@move:/new/path/to/file
+# EndFile /path/to/file
+```
 
 Request:
 ```json
