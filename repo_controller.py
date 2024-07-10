@@ -5,7 +5,7 @@ import sys
 import re
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import shutil
@@ -13,15 +13,11 @@ import time
 import asyncio
 from typing import Dict, Any
 import logging
-from fastapi.templating import Jinja2Templates
 
 app = FastAPI()
 
 # Mount the static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# Set up Jinja2 templates
-templates = Jinja2Templates(directory=".")
 
 # Cache to store cloned repositories
 repo_cache: Dict[str, Dict[str, Any]] = {}
@@ -40,8 +36,8 @@ class PullRequestRequest(BaseModel):
 # ... (keep all other functions unchanged)
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+async def read_root():
+    return FileResponse("index.html")
 
 @app.get("/repo")
 async def get_repo_summary(repo_request: RepoRequest, background_tasks: BackgroundTasks, branch: str = Query("main", description="Branch to fetch")):
