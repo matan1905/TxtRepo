@@ -1,3 +1,5 @@
+This file was generated using TxtRepo + n8n workflow that listened to issues!
+
 # TxtRepo
 
 TxtRepo is a tool that allows users to interact with GitHub repositories using a simple API. It provides functionality to retrieve an entire codebase as a single text file and convert a similarly formatted text file into a pull request.
