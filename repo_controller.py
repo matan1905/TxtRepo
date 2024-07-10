@@ -93,7 +93,7 @@ def process_relative_paths(output: str, base_path: Path, git_url: str) -> str:
 
 
 def parse_summary(summary: str, repo_path: Path):
-    file_pattern = re.compile(r'# File (.*?)(?:@.*?)?\n(.*?)# EndFile \1', re.DOTALL)
+    file_pattern = re.compile(r'# File (.*?)(?:::.*?)?\n(.*?)# EndFile \1', re.DOTALL)
     files = []
     last_end = 0
 
@@ -110,10 +110,10 @@ def parse_summary(summary: str, repo_path: Path):
         if len(path_parts) > 2 and path_parts[0] == '':
             path = '/'.join(path_parts[3:])
 
-        # Parse the mini DSL
+        # Parse the DSL instructions
         dsl_instructions = {}
-        if '@' in path:
-            path, dsl_string = path.split('@', 1)
+        if '::' in path:
+            path, dsl_string = path.split('::', 1)
             dsl_instructions = parse_dsl(dsl_string)
 
         files.append({'path': path, 'content': content, 'dsl': dsl_instructions})
