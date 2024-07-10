@@ -174,15 +174,20 @@ def update_repo(files: list, repo_path: Path):
             logging.info(f"Processing file: {file_path}")
 
             if dsl_instruction:
-                with open(file_path, 'r') as f:
-                    lines = f.readlines()
-                success, message = dsl_instruction.apply(file_path, content, lines)
-                if success:
-                    with open(file_path, 'w') as f:
-                        f.writelines(lines)
-                    logging.info(message)
+                if isinstance(dsl_instruction, DeleteFileInstruction):
+                    new_lines, message = dsl_instruction.apply(file_path, content, None)
+                    if new_lines is None:
+                        logging.info(message)
+                        continue
                 else:
-                    logging.warning(message)
+                    with open(file_path, 'r') as f:
+                        lines = f.readlines()
+                    new_lines, message = dsl_instruction.apply(file_path, content, lines)
+                
+                if new_lines is not None:
+                    with open(file_path, 'w') as f:
+                        f.writelines(new_lines)
+                logging.info(message)
             else:
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(file_path, 'w') as f:
@@ -191,7 +196,6 @@ def update_repo(files: list, repo_path: Path):
         except Exception as e:
             logging.error(f"Error processing file {path}: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error processing file {path}: {str(e)}")
-
 
 def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
     try:

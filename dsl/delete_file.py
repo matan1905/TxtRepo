@@ -1,11 +1,12 @@
 from .base import DslInstruction
+import os
 
 class DeleteFileInstruction(DslInstruction):
     def apply(self, file_path, content, lines):
-        if file_path.exists():
-            file_path.unlink()
-            return True, "File deleted"
-        return False, "File does not exist"
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return None, "File deleted"
+        return lines, "File does not exist"
 
     @classmethod
     def parse(cls, args):
