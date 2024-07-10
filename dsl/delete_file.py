@@ -4,8 +4,8 @@ class DeleteFileInstruction(DslInstruction):
     def apply(self, file_path, content, lines):
         if file_path.exists():
             file_path.unlink()
-            return [], "File deleted"
-        return [], "File does not exist"
+            return None, "File deleted"
+        return None, "File does not exist"
 
     @classmethod
     def parse(cls, args):
