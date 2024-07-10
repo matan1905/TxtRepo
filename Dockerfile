@@ -27,6 +27,7 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | g
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the current directory contents into the container at /app
+COPY static /app/static
 COPY . /app
 
 # Install Python dependencies

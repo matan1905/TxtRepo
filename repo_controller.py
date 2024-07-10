@@ -4,6 +4,8 @@ import tempfile
 import sys
 import re
 from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
 from pydantic import BaseModel
 import shutil
@@ -11,6 +13,14 @@ import time
 import asyncio
 from typing import Dict, Any, List, Optional
 import logging
+# Mount the static files directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    with open("static/index.html", "r") as f:
+        content = f.read()
+    return HTMLResponse(content=content)
 
 app = FastAPI()
 
