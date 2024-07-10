@@ -61,11 +61,18 @@ For multiple files, repeat the format. To delete a file, use the "@delete" suffi
 
 ```
 # File /path/to/delete@delete
+- Move files to a new location
 # EndFile /path/to/delete
 ```
 
 To inject content at a specific line, use the "@injectAtLine:line-number" suffix:
 
+```
+To move a file to a new location, use the "@move:/new/path" suffix:
+
+```
+# File /path/to/old/file@move:/path/to/new/file
+# EndFile /path/to/old/file
 ```
 # File /path/to/file@injectAtLine:5
 Content to be injected
