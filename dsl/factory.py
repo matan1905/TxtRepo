@@ -11,8 +11,6 @@ class DslInstructionFactory:
 
         instructions = {
             'delete-file': DeleteFileInstruction,
-            'delete-lines-inclusive': DeleteLinesInstruction,
-            'replace-lines-inclusive': ReplaceLinesInstruction,
             'inject-at-line': InjectAtLineInstruction
         }
 
