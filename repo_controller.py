@@ -1,5 +1,7 @@
 from dsl.factory import DslInstructionFactory
 from dsl.base import DslInstruction
+import re
+from dsl.base import Token
 import os
 import subprocess
 import tempfile
@@ -128,36 +130,67 @@ def parse_summary(summary: str, repo_path: Path):
         # Parse the DSL instructions
         dsl_instructions = parse_dsl(command[2:] if command else "")
 
-        files.append({'path': path, 'content': content, 'dsl': dsl_instructions})
+def parse_summary(summary: str, repo_path: Path):
+    file_pattern = re.compile(r'# File (.*?)(::.*?)?\n(.*?)# EndFile \1', re.DOTALL)
+    files = []
+    last_end = 0
+
+    for match in file_pattern.finditer(summary):
+        if match.start() < last_end:
+            continue  # Skip nested matches
+
+        path = match.group(1).strip()
+        command = match.group(2) and match.group(2).strip()
+        content = match.group(3).strip()
+        last_end = match.end()
+
+        # Remove the friendly base path if present
+        path_parts = path.split('/')
+        if len(path_parts) > 2 and path_parts[0] == '':
+            path = '/'.join(path_parts[3:])
+
+        # Parse the DSL instructions
+        dsl_instructions = parse_dsl(command[2:] if command else "")
+
+        # Tokenize the content
+        tokens = tokenize_content(content)
+
+        files.append({'path': path, 'tokens': tokens, 'dsl': dsl_instructions})
 
     return files
 
+def tokenize_content(content: str) -> List[Token]:
+    tokens = []
+    lines = content.split('\n')
+    for i, line in enumerate(lines):
+def update_repo(files: list, repo_path: Path):
+    for file in files:
+        path = file['path']
+        tokens = file['tokens']
+        dsl_instruction = file['dsl']
 
-def parse_dsl(dsl_string: str) -> DslInstruction:
-    return DslInstructionFactory.create(dsl_string)
+        try:
+            file_path = get_safe_path(repo_path, path)
+            logging.info(f"Processing file: {file_path}")
 
+            if dsl_instruction:
+                new_tokens, message = dsl_instruction.apply(file_path, None, tokens)
+                if new_tokens:
+                    content = detokenize_content(new_tokens)
+                    with open(file_path, 'w') as f:
+                        f.write(content)
+            else:
+                content = detokenize_content(tokens)
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(file_path, 'w') as f:
+                    f.write(content)
+                logging.info(f"Updated file: {file_path}")
+        except Exception as e:
+            logging.error(f"Error processing file {path}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error processing file {path}: {str(e)}")
 
-
-def get_safe_path(repo_path: Path, file_path: str) -> Path:
-    """Ensure the file path is within the repo directory."""
-    normalized_path = os.path.normpath(file_path).lstrip('/')
-
-    # If the path doesn't start with the repo_path, prepend it
-    if not normalized_path.startswith(str(repo_path)):
-        full_path = (repo_path / normalized_path).resolve()
-    else:
-        full_path = Path(normalized_path).resolve()
-
-    # Check if the resolved path starts with any parent of repo_path
-    repo_parents = [repo_path] + list(repo_path.parents)
-    if not any(str(full_path).startswith(str(parent)) for parent in repo_parents):
-        logging.warning(f"Attempted to access path outside repo: {full_path}")
-        raise HTTPException(status_code=400, detail=f"Invalid file path: {file_path}")
-
-    logging.info(f"repo_path: {repo_path}")
-    logging.info(f"file_path: {file_path}")
-    logging.info(f"normalized_path: {normalized_path}")
-    logging.info(f"full_path: {full_path}")
+def detokenize_content(tokens: List[Token]) -> str:
+    return ''.join(token.content + '\n' for token in tokens if token.token_type == 'content')
     logging.info(f"repo_parents: {repo_parents}")
 
     return full_path

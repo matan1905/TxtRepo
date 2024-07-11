@@ -1,7 +1,7 @@
 from .delete_file import DeleteFileInstruction
-from .delete_lines import DeleteLinesInstruction
-from .replace_lines import ReplaceLinesInstruction
-from .inject_at_line import InjectAtLineInstruction
+from .delete_tokens import DeleteTokensInstruction
+from .replace_tokens import ReplaceTokensInstruction
+from .inject_at_token import InjectAtTokenInstruction
 
 class DslInstructionFactory:
     @staticmethod
@@ -11,9 +11,9 @@ class DslInstructionFactory:
 
         instructions = {
             'delete-file': DeleteFileInstruction,
-            'delete-lines-inclusive': DeleteLinesInstruction,
-            'replace-lines-inclusive': ReplaceLinesInstruction,
-            'inject-at-line': InjectAtLineInstruction
+            'delete-tokens': DeleteTokensInstruction,
+            'replace-tokens': ReplaceTokensInstruction,
+            'inject-at-token': InjectAtTokenInstruction
         }
 
         if ':' in dsl_string:

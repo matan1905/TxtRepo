@@ -1,7 +1,7 @@
 from .base import DslInstruction
 
 class DeleteFileInstruction(DslInstruction):
-    def apply(self, file_path, content, lines):
+    def apply(self, file_path, content, tokens):
         if file_path.exists():
             file_path.unlink()
             return None, "File deleted"
