@@ -13,6 +13,12 @@ from pydantic import BaseModel
 import shutil
 import time
 import asyncio
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Depends, Header
+from fastapi.security import APIKeyHeader
+from pydantic import BaseModel, Field
+from typing import Dict, Any, List, Optional
+import time
+from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 import logging
 
@@ -26,6 +32,27 @@ async def root():
     with open("static/index.html", "r") as f:
         content = f.read()
     return HTMLResponse(content=content)
+class ApiKey(BaseModel):
+    key: str
+    credits: int = 100
+    last_reset: datetime = Field(default_factory=datetime.utcnow)
+
+api_keys: Dict[str, ApiKey] = {}
+
+def get_api_key(api_key: str = Header(..., description="Your API key")) -> ApiKey:
+    if api_key not in api_keys:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return api_keys[api_key]
+
+def check_rate_limit(api_key: ApiKey = Depends(get_api_key)):
+    current_time = datetime.utcnow()
+    if current_time - api_key.last_reset > timedelta(days=1):
+        api_key.credits = 100
+        api_key.last_reset = current_time
+    if api_key.credits <= 0:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    api_key.credits -= 1
+    return api_key
 
 
 # Cache to store cloned repositories
@@ -256,6 +283,8 @@ def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
 
 
 def get_cached_repo(git_url: str, branch: str) -> Path:
+@app.get("/repo", dependencies=[Depends(check_rate_limit)])
+async def get_repo_summary(
     if git_url in repo_cache:
         cache_info = repo_cache[git_url]
         if time.time() - cache_info['timestamp'] < CACHE_EXPIRATION:
@@ -289,6 +318,8 @@ async def get_repo_summary(
         branch: str = Query("main", description="Branch to fetch"),
         filter_patterns: Optional[str] = Query(None,
                                                description="Comma-separated filter patterns to include files (e.g., '*.py,*.js')"),
+@app.post("/repo", dependencies=[Depends(check_rate_limit)])
+async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background_tasks: BackgroundTasks):
         exclude_patterns: Optional[str] = Query(None,
                                                 description="Comma-separated patterns to exclude files (e.g., '*.txt,*.md')"),
         case_sensitive: bool = Query(False, description="Perform case-sensitive pattern matching"),
@@ -299,6 +330,15 @@ async def get_repo_summary(
     repo_path = get_cached_repo(repo_request.git_url, branch)
     summary = await run_code2prompt(
         repo_path,
+@app.post("/api-key")
+async def create_api_key():
+    api_key = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+    api_keys[api_key] = ApiKey(key=api_key)
+    return {"api_key": api_key}
+
+@app.get("/credits")
+async def get_credits(api_key: ApiKey = Depends(get_api_key)):
+    return {"credits": api_key.credits}
         repo_request.git_url,
         filter_patterns,
         exclude_patterns,
