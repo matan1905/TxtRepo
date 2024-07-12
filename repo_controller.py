@@ -128,7 +128,7 @@ def parse_summary(summary: str, repo_path: Path):
         # Parse the DSL instructions
         dsl_instructions = parse_dsl(command[2:] if command else "")
 
-        files.append({'path': path, 'content': content, 'dsl': dsl_instructions})
+        files.append({'path': path, 'content': content, 'dsl': dsl_instructions, 'pathAndCommand': str(path)+str(command if command else '')})
 
     return files
 
@@ -164,7 +164,9 @@ def get_safe_path(repo_path: Path, file_path: str) -> Path:
 
 
 def update_repo(files: list, repo_path: Path):
-    for file in files:
+    sorted_files = sorted(files, key=lambda x: x['pathAndCommand'], reverse=True)  # this prevents
+
+    for file in sorted_files:
         path = file['path']
         content = file['content']
         dsl_instruction = file['dsl']
