@@ -1,6 +1,4 @@
 from .delete_file import DeleteFileInstruction
-from .delete_lines import DeleteLinesInstruction
-from .replace_lines import ReplaceLinesInstruction
 from .inject_at_line import InjectAtLineInstruction
 
 class DslInstructionFactory:
