@@ -113,5 +113,32 @@ Response:
 ```
 
 ## Note
+## API Keys and Credits
+
+TxtRepo now uses an API key system with credits. Each API key is associated with a certain number of credits. To use the API, you need to provide a valid API key with sufficient credits.
+
+- Retrieving a repository summary costs 1 credit
+- Creating a pull request costs 2 credits
+
+To check your credit balance, use the following endpoint:
+
+```
+GET /credits?api_key=your_api_key
+```
+
+Make sure to include your API key in all requests to the `/repo` endpoints.
+
+## Environment Variables
+
+The application uses the following environment variable:
+
+- `API_KEYS`: A comma-separated list of API keys and their initial credit balance. Format: `key1:balance1,key2:balance2`
+
+Example:
+```
+API_KEYS=abcdef123456:100,ghijkl789012:50
+```
+
+This sets up two API keys: "abcdef123456" with 100 credits and "ghijkl789012" with 50 credits.
 
 Make sure to keep your GitHub personal access token secure and never share it publicly.
