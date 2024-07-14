@@ -2,6 +2,10 @@
 
 When making changes to files, use the following formats:
 
+# File /path/to/file::[instruction?]:[arguments?]
+[Content (depends on instruction)]
+# EndFile /path/to/file
+
 ## Create or Replace Entire Files
 
 To create a new file or completely replace an existing file's content:
@@ -66,8 +70,9 @@ To remove a file completely:
 1. Make minimal, precise edits.
 2. Use multiple edit blocks for different changes in the same file.
 3. Avoid large, sweeping changes in a single edit when possible.
-4. Include brief comments within the code if needed for clarity.
+4. do not wrap the file blocks in markdown code blocks
 5. Always consider the context and purpose of the edit.
 6. Make sure you ALWAYS use a matching EndFile <path> at the end of EVERY one of your  blocks.
+7. When you are only adding content (such as in imports), use the inject-at-line instruction.
 
-Remember, the goal is to make clear, targeted changes that are easy to understand and implement.
+Remember, the goal is to feed your answer into a parser that will create a pull request with the changes you want to make.
