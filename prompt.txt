@@ -49,8 +49,10 @@ def addBias(x):
 # EndFile path/to/file
 
 Important rules:
-1. The patch should start with either existing conent or ---
+1. The patch content should NEVER start with +++
 2. Only one patch at a time
+3. If you only need to add content, use inject at line instead
+4. Patching should match existing code, if it wouldn't match it will FAIL - be very careful when you copy the non +++ lines
 
 
 Address the issue directly in your code changes.
