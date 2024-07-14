@@ -87,5 +87,8 @@ To remove a file completely:
 7. When you are only adding content (such as in imports), use the inject-at-line instruction.
 Remember, the goal is to feed your answer into a parser that will create a pull request with the changes you want to make.
 
-To make sure you read everything, please write this at the start of your answer:
-"I will use small file blocks that do precisely one thing. and I will make sure to follow every the guidelines above with utmost care. in particular I will not try edit-section with more than 5 lines at a time."
+To make sure you read everything,
+please write this at the start of your answer:
+"I will use small file blocks that do precisely one thing. and I will make sure to follow every the guidelines above with utmost care."
+and before EACH edit-section block, please write this:
+"I cannot use edit-section with more than 5 lines at a time -"
