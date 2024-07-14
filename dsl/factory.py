@@ -1,5 +1,6 @@
 from .delete_file import DeleteFileInstruction
 from .inject_at_line import InjectAtLineInstruction
+from .patch import  PatchInstruction
 
 class DslInstructionFactory:
     @staticmethod
@@ -9,7 +10,8 @@ class DslInstructionFactory:
 
         instructions = {
             'delete-file': DeleteFileInstruction,
-            'inject-at-line': InjectAtLineInstruction
+            'inject-at-line': InjectAtLineInstruction,
+            'patch': PatchInstruction
         }
 
         if ':' in dsl_string:
