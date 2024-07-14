@@ -12,6 +12,7 @@ For multiple files, repeat the format.
 Note this will REMOVE all other content that is not part of what you write! so be very careful with it!!! 
 if you just need a quick edit, use inject-at-line explained below.
 
+---
 
 To inject content at a specific line, use this format:
 
@@ -29,11 +30,28 @@ Content to be injected at line-numberX
 Content to be injected at line-numberY
 # EndFile /path/to/file
 
+---
+
 To delete an ENTIRE file, use this format:
 
 # File /path/to/file::delete-file
 # EndFile /path/to/file
- 
+
+---
+
+To Patch a part of the file, you can use the patch:
+
+# File path/to/file::patch
+def addBias(x):
+---    bias = 1
++++    bias = 5
+    return bias + x
+# EndFile path/to/file
+
+Important rules:
+1. The patch should start with either existing conent or ---
+2. Only one patch at a time
+
 
 Address the issue directly in your code changes.
 
