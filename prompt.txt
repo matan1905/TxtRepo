@@ -21,18 +21,26 @@ To make targeted changes to a specific part of a file:
 ```
 # File /path/to/file::edit-section
 [Minimal unique context before the change]
----[Lines to be removed]
-+++[Lines to be added]
+---[Line to be removed]
+---[Line to be removed]
++++[Line to be added]
+[line to keep]
+[line to keep]
++++[Line to be added]
+[line to keep]
++++[Line to be added]
++++[Line to be added]
 [Minimal unique context after the change]
 # EndFile /path/to/file
 ```
 
 **Key principles for edit-section:**
-1. Minimal Context: Include only enough context to uniquely identify the section to be changed.
-2. Precise Changes: Only include the exact lines to be removed or added.
-3. Exact Matching: All lines except those starting with '+++' must match the existing file content exactly.
-4. Multiple Edits: Use separate edit-section blocks for different changes in the same file.
-5. Start of File: When editing at the beginning of a file, you may start directly with the '---' line.
+Minimal Context: Include only enough context to uniquely identify the section to be changed.
+Exact Matching: *PAY ATTENTION* All lines except those starting with '+++' must match the existing file content EXACTLY - .
+I REPEAT - KEEP THE EXACT SAME CONTENT AS IN THE ORIGINAL FILE FOR THE CONTEXT.
+Multiple Edits: Use separate edit-section blocks for different changes in the same file.
+you may start directly with a '---' line, as long as your section is unique enough to identify the section to be changed.
+Every line you plan to remove or add should be include --- or +++ at the beginning of the line.
 
 ## Inject Content at a Specific Line
 
