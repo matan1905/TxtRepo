@@ -1,4 +1,4 @@
-# Instructions for Editing Files
+# Generic Instructions for Editing Files
 
 When making changes to files, use the following formats:
 
@@ -20,54 +20,19 @@ To make targeted changes to a specific part of a file:
 
 ```
 # File /path/to/file::edit-section
-[Optional - A few lines of unique context before the change]
----[Lines to be removed (include JUST enough context to be unique)]
+[Minimal unique context before the change]
+---[Lines to be removed]
 +++[Lines to be added]
-[Optional - A few lines of unique context after the change]
+[Minimal unique context after the change]
 # EndFile /path/to/file
 ```
 
-**Important rules for edit-section:**
-- If the section is very repeating, Include just enough unique context before and after the change to precisely locate the section.
-- Minimize the context to just what's necessary (usually 0-3 lines before / after).
-- Lines starting with `---` will be removed.
-- Lines starting with `+++` will be added.
-- All lines (except for the '+++') are used for context and should match the existing file content exactly.
-- If there are no meaningful lines before the content to be changed (e.g., only line breaks), it's advised to start directly with the `---` line.
-
-**Good example:**
-```
-# File /path/to/file::edit-section
-def add_bias(x):
----    bias = 1
-+++    bias = 5
-    return bias + x
-# EndFile /path/to/file
-```
-
-**Good example (when editing at the start of a file or section):**
-```
-# File /path/to/file::edit-section
----# Old header
-+++# Updated header
-import math
-import random
-# EndFile /path/to/file
-```
-
-**Bad example (avoid this):**
-```
-# File /path/to/file::edit-section
-import logging
-import time
-def unrelated_function():
-    return "This function has nothing to do with anything"
-def add_bias(x):
----    bias = 1
-+++    bias = 5
-    return bias + x
-# EndFile /path/to/file
-```
+**Key principles for edit-section:**
+1. Minimal Context: Include only enough context to uniquely identify the section to be changed.
+2. Precise Changes: Only include the exact lines to be removed or added.
+3. Exact Matching: All lines except those starting with '+++' must match the existing file content exactly.
+4. Multiple Edits: Use separate edit-section blocks for different changes in the same file.
+5. Start of File: When editing at the beginning of a file, you may start directly with the '---' line.
 
 ## Inject Content at a Specific Line
 
@@ -88,4 +53,12 @@ To remove a file completely:
 # EndFile /path/to/file
 ```
 
-Remember to address the issue directly in your code changes and keep explanations brief. If needed, include short comments within the code.
+## General Guidelines
+
+1. Make minimal, precise edits.
+2. Use multiple edit blocks for different changes in the same file.
+3. Avoid large, sweeping changes in a single edit when possible.
+4. Include brief comments within the code if needed for clarity.
+5. Always consider the context and purpose of the edit.
+
+Remember, the goal is to make clear, targeted changes that are easy to understand and implement.
