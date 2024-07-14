@@ -26,13 +26,7 @@ To make targeted changes to a specific part of a file:
 # File /path/to/file::edit-section
 [Minimal unique context before the change. IMPORTANT - SHOULD BE AS LITTLE AS POSSIBLE]
 ---[Line to be removed]
----[Line to be removed]
-+++[Line to be added]
 [line to keep]
-[line to keep]
-+++[Line to be added]
-[line to keep]
-+++[Line to be added]
 +++[Line to be added]
 # EndFile /path/to/file
 ```
@@ -55,6 +49,7 @@ def add(a, b):
 ```
 
 **Key principles for edit-section:**
+EDIT-SECTION SHOULD ONLY BE USED FOR SIMPLE CHANGES TO FILES - 3-5 LINES AT A TIME, THIS IS BECAUSE CONTEXT IS EASILY LOST AND THAT CAN CAUSE AN ERROR.
 Minimal Context: Include only enough context to uniquely identify the section to be changed.
 Exact Matching: *PAY ATTENTION* All lines except those starting with '+++' must match the existing file content EXACTLY - .
 I REPEAT - KEEP THE EXACT SAME CONTENT AS IN THE ORIGINAL FILE FOR THE CONTEXT.
