@@ -1,7 +1,7 @@
 from .base import DslInstruction
 
 
-class PatchInstruction(DslInstruction):
+class EditSectionInstruction(DslInstruction):
     """
     Patches parts of a file.
     The format is:

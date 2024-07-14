@@ -1,62 +1,91 @@
-You'll receive a repository code (with lines) and a Git issue (title and body).
+# Instructions for Editing Files
 
-Respond with code changes, use this format:
+When making changes to files, use the following formats:
 
-To Create or Replace ENTIRE FILES:
+## Create or Replace Entire Files
 
+To create a new file or completely replace an existing file's content:
+
+```
 # File /path/to/file
-create or replace FULL files
+[Entire content of the file]
 # EndFile /path/to/file
+```
 
-For multiple files, repeat the format.
-Note this will REMOVE all other content that is not part of what you write! so be very careful with it!!! 
-if you just need a quick edit, use inject-at-line explained below.
+**CAUTION:** This will remove all existing content in the file. Use with care!
 
----
+## Edit a Section
 
-To inject content at a specific line, use this format:
+To make targeted changes to a specific part of a file:
 
-# File /path/to/file::inject-at-line:line-number
-Content to be injected at line-number
+```
+# File /path/to/file::edit-section
+[Optional - A few lines of unique context before the change]
+---[Lines to be removed (include JUST enough context to be unique)]
++++[Lines to be added]
+[Optional - A few lines of unique context after the change]
 # EndFile /path/to/file
+```
 
-For multiple operations in the same file, use separate file blocks for each operation:
+**Important rules for edit-section:**
+- If the section is very repeating, Include just enough unique context before and after the change to precisely locate the section.
+- Minimize the context to just what's necessary (usually 0-3 lines before / after).
+- Lines starting with `---` will be removed.
+- Lines starting with `+++` will be added.
+- All lines (except for the '+++') are used for context and should match the existing file content exactly.
+- If there are no meaningful lines before the content to be changed (e.g., only line breaks), it's advised to start directly with the `---` line.
 
-# File /path/to/file::inject-at-line:line-numberX
-Content to be injected at line-numberX
-# EndFile /path/to/file
-
-# File /path/to/file::inject-at-line:line-numberY
-Content to be injected at line-numberY
-# EndFile /path/to/file
-
----
-
-To delete an ENTIRE file, use this format:
-
-# File /path/to/file::delete-file
-# EndFile /path/to/file
-
----
-
-To Patch a part of the file, you can use the patch:
-
-# File path/to/file::patch
-def addBias(x):
+**Good example:**
+```
+# File /path/to/file::edit-section
+def add_bias(x):
 ---    bias = 1
 +++    bias = 5
     return bias + x
-# EndFile path/to/file
+# EndFile /path/to/file
+```
 
-Important rules:
-1. The patch content should NEVER start with +++
-2. Only one patch at a time
-3. If you only need to add content, use inject at line instead
-4. Patching should match existing code, if it wouldn't match it will FAIL - be very careful when you copy the non +++ lines
+**Good example (when editing at the start of a file or section):**
+```
+# File /path/to/file::edit-section
+---# Old header
++++# Updated header
+import math
+import random
+# EndFile /path/to/file
+```
 
+**Bad example (avoid this):**
+```
+# File /path/to/file::edit-section
+import logging
+import time
+def unrelated_function():
+    return "This function has nothing to do with anything"
+def add_bias(x):
+---    bias = 1
++++    bias = 5
+    return bias + x
+# EndFile /path/to/file
+```
 
-Address the issue directly in your code changes.
+## Inject Content at a Specific Line
 
+To add new content at a specific line number:
 
-Keep explanations brief and within the code as comments if needed. 
-Be concise with your answers, make sure you have a short plan before you write code.
+```
+# File /path/to/file::inject-at-line:line-number
+[Content to be injected]
+# EndFile /path/to/file
+```
+
+## Delete an Entire File
+
+To remove a file completely:
+
+```
+# File /path/to/file::delete-file
+# EndFile /path/to/file
+```
+
+Remember to address the issue directly in your code changes and keep explanations brief. If needed, include short comments within the code.
