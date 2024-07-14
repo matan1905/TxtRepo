@@ -1,0 +1,4 @@
+def addBias(x):
+---    bias = 1
++++    bias = 5
+    return bias + x

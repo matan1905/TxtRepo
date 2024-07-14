@@ -1,3 +1,4 @@
+from .patch import PatchInstruction
 from .delete_file import DeleteFileInstruction
 from .inject_at_line import InjectAtLineInstruction
 
@@ -9,6 +10,7 @@ class DslInstructionFactory:
 
         instructions = {
             'delete-file': DeleteFileInstruction,
+'patch': PatchInstruction,
             'inject-at-line': InjectAtLineInstruction
         }
 

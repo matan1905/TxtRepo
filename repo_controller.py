@@ -127,12 +127,20 @@ def parse_summary(summary: str, repo_path: Path):
 
         # Parse the DSL instructions
         dsl_instructions = parse_dsl(command[2:] if command else "")
+# Parse the DSL instructions
+        dsl_instructions = parse_dsl(command[2:] if command else "", content)
+
+        files.append({'path': path, 'content': content, 'dsl': dsl_instructions, 'pathAndCommand': str(path)+str(command if command else '')})
 
         files.append({'path': path, 'content': content, 'dsl': dsl_instructions, 'pathAndCommand': str(path)+str(command if command else '')})
 
     return files
 
 
+def parse_dsl(dsl_string: str, content: str) -> DslInstruction:
+    if dsl_string.startswith('patch'):
+        return DslInstructionFactory.create(f"patch:{content}")
+    return DslInstructionFactory.create(dsl_string)
 def parse_dsl(dsl_string: str) -> DslInstruction:
     return DslInstructionFactory.create(dsl_string)
 
