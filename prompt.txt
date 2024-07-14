@@ -37,6 +37,23 @@ To make targeted changes to a specific part of a file:
 # EndFile /path/to/file
 ```
 
+For example, if you wanted to add a float conversion to the add function, you could do it like this:
+# File /utils/math.py::edit-section
+def add(a, b):
+---    return a + b
++++    return float(a) + float(b)
+# EndFile /utils/add.py
+in this example, the context is the function name - it helped the parser find the function.
+ The '---' line is also part of the context - because we know that we need to remove them we can use this to identify the section.
+ The '+++' lines are the lines we want to add.
+The final result will look like this:
+```
+... other code ...
+def add(a, b):
+    return float(a) + float(b)
+... other code ...
+```
+
 **Key principles for edit-section:**
 Minimal Context: Include only enough context to uniquely identify the section to be changed.
 Exact Matching: *PAY ATTENTION* All lines except those starting with '+++' must match the existing file content EXACTLY - .
