@@ -68,5 +68,6 @@ To remove a file completely:
 3. Avoid large, sweeping changes in a single edit when possible.
 4. Include brief comments within the code if needed for clarity.
 5. Always consider the context and purpose of the edit.
+6. Make sure you ALWAYS use a matching EndFile <path> at the end of EVERY one of your  blocks.
 
 Remember, the goal is to make clear, targeted changes that are easy to understand and implement.
