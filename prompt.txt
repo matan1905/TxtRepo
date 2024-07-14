@@ -24,7 +24,7 @@ To make targeted changes to a specific part of a file:
 
 ```
 # File /path/to/file::edit-section
-[Minimal unique context before the change]
+[Minimal unique context before the change. IMPORTANT - SHOULD BE AS LITTLE AS POSSIBLE]
 ---[Line to be removed]
 ---[Line to be removed]
 +++[Line to be added]
@@ -34,7 +34,6 @@ To make targeted changes to a specific part of a file:
 [line to keep]
 +++[Line to be added]
 +++[Line to be added]
-[Minimal unique context after the change]
 # EndFile /path/to/file
 ```
 
@@ -74,5 +73,7 @@ To remove a file completely:
 5. Always consider the context and purpose of the edit.
 6. Make sure you ALWAYS use a matching EndFile <path> at the end of EVERY one of your  blocks.
 7. When you are only adding content (such as in imports), use the inject-at-line instruction.
-
 Remember, the goal is to feed your answer into a parser that will create a pull request with the changes you want to make.
+
+To make sure you read everything, please write this at the start of your answer:
+"I will use small file blocks that do precisely one thing. and I will make sure to follow every the guidelines above with utmost care."
