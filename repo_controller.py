@@ -348,6 +348,59 @@ async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background
 
 
 if __name__ == "__main__":
+@app.post("/register")
+async def register_user(username: str, email: str):
+    db = get_db_connection()
+    cursor = db.cursor()
+    api_key = secrets.token_urlsafe(32)
+    cursor.execute("INSERT INTO users (username, email, api_key, credits) VALUES (%s, %s, %s, %s)", (username, email, api_key, 100))
+    db.commit()
+    cursor.close()
+    db.close()
+    return {"api_key": api_key}
+
+@app.get("/credits")
+async def get_credits(user: dict = Depends(get_current_user)):
+    return {"credits": user["credits"]}
+
+@app.post("/deduct-credits")
+async def deduct_credits(amount: int, user: dict = Depends(get_current_user)):
+    if user["credits"] < amount:
+        raise HTTPException(status_code=400, detail="Insufficient credits")
+    
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("UPDATE users SET credits = credits - %s WHERE id = %s", (amount, user["id"]))
+    db.commit()
+    cursor.close()
+    db.close()
+    
+    return {"remaining_credits": user["credits"] - amount}
+
+# Modify existing endpoints to use authentication
+@app.get("/repo")
+async def get_repo_summary(
+    repo_request: RepoRequest,
+    background_tasks: BackgroundTasks,
+    branch: str = Query("main", description="Branch to fetch"),
+    filter_patterns: Optional[str] = Query(None, description="Comma-separated filter patterns to include files (e.g., '*.py,*.js')"),
+    exclude_patterns: Optional[str] = Query(None, description="Comma-separated patterns to exclude files (e.g., '*.txt,*.md')"),
+    case_sensitive: bool = Query(False, description="Perform case-sensitive pattern matching"),
+    suppress_comments: bool = Query(False, description="Strip comments from the code files"),
+    line_number: bool = Query(False, description="Add line numbers to source code blocks"),
+    user: dict = Depends(get_current_user)
+):
+    # Deduct credits for using the API
+    await deduct_credits(1, user)
+    
+    # ... rest of the function remains the same
+
+@app.post("/repo")
+async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
+    # Deduct credits for using the API
+    await deduct_credits(5, user)
+    
+    # ... rest of the function remains the same
     logging.basicConfig(level=logging.INFO)
     REPO_BASE_DIR.mkdir(parents=True, exist_ok=True)
     import uvicorn

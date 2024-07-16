@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     gnupg \
-    && rm -rf /var/lib/apt/lists/*
+    default-mysql-client \
 
 # Install pipx
 RUN python -m pip install --user pipx
