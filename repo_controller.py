@@ -9,13 +9,23 @@ from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import shutil
 import time
 import asyncio
 from typing import Dict, Any, List, Optional
 import logging
+from github import Github
+from github import GithubIntegration
+import jwt
+import time
 
+APP_ID = 123456  # Replace with your GitHub App ID
+PRIVATE_KEY = """
+-----BEGIN RSA PRIVATE KEY-----
+Your GitHub App's private key here
+-----END RSA PRIVATE KEY-----
+"""
 app = FastAPI()
 # Mount the static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -40,7 +50,7 @@ class RepoRequest(BaseModel):
 
 class PullRequestRequest(BaseModel):
     git_url: str
-    github_token: str
+    installation_id: int
     summary: str
     branch: str = "main"
     pr_branch: Optional[str] = None
@@ -55,7 +65,8 @@ def extract_repo_info(git_url: str) -> tuple:
     return None, None
 
 
-def clone_repo(git_url: str, clone_dir: Path):
+def create_pull_request(repo_path: Path, installation_id: int, source_branch: str, pr_branch: Optional[str] = None, pr_title: Optional[str] = None, pr_description: Optional[str] = None):
+    try:
     try:
         subprocess.run(["git", "clone", git_url, str(clone_dir)], check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
@@ -197,11 +208,33 @@ def update_repo(files: list, repo_path: Path):
 
 def create_pull_request(repo_path: Path, github_token: str, source_branch: str, pr_branch: Optional[str] = None, pr_title: Optional[str] = None, pr_description: Optional[str] = None):
     try:
+        # Generate a JWT token
+        now = int(time.time())
+        payload = {
+            "iat": now,
+            "exp": now + 600,
+            "iss": APP_ID
+        }
+        encoded_jwt = jwt.encode(payload, PRIVATE_KEY, algorithm="RS256")
+
+        # Get an access token for the installation
+        headers = {
+            "Authorization": f"Bearer {encoded_jwt}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        response = requests.post(
+            f"https://api.github.com/app/installations/{installation_id}/access_tokens",
+            headers=headers
+        )
+        access_token = response.json()["token"]
+
+        # Create a GitHub instance with the access token
+        g = Github(access_token)
+        repo = g.get_repo(extract_repo_info(str(repo_path))[0] + "/" + extract_repo_info(str(repo_path))[1])
+
         # Set up Git configuration
-        subprocess.run(["git", "config", "user.name", "GitHub Actions"], cwd=repo_path, check=True, capture_output=True,
-                       text=True)
-        subprocess.run(["git", "config", "user.email", "actions@github.com"], cwd=repo_path, check=True,
-                       capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.name", "GitHub App"], cwd=repo_path, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.email", f"{APP_ID}+{installation_id}@users.noreply.github.com"], cwd=repo_path, check=True, capture_output=True, text=True)
 
         # Check if there are any changes
         status_output = subprocess.check_output(["git", "status", "--porcelain"], cwd=repo_path, text=True)
@@ -219,43 +252,25 @@ def create_pull_request(repo_path: Path, github_token: str, source_branch: str, 
         subprocess.run(["git", "commit", "-m", "Update repository"], cwd=repo_path, check=True, capture_output=True,
                        text=True)
 
-        # Get the remote URL and add the token
+        # Get the remote URL
         remote_url = subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=repo_path, text=True).strip()
-        auth_remote = re.sub(r"https://", f"https://x-access-token:{github_token}@", remote_url)
 
         # Push changes
         logging.info(f"Pushing changes to branch: {branch_name}")
-        push_result = subprocess.run(["git", "push", "-u", auth_remote, branch_name], cwd=repo_path,
+        push_result = subprocess.run(["git", "push", "-u", remote_url, branch_name], cwd=repo_path,
                                      capture_output=True, text=True)
         if push_result.returncode != 0:
             raise subprocess.CalledProcessError(push_result.returncode, push_result.args, push_result.stdout,
                                                 push_result.stderr)
 
-        # Create pull request using GitHub CLI
-        logging.info("Authenticating with GitHub CLI")
-        auth_result = subprocess.run(["gh", "auth", "login", "--with-token"], input=github_token, text=True,
-                                     capture_output=True)
-        if auth_result.returncode != 0:
-            raise subprocess.CalledProcessError(auth_result.returncode, auth_result.args, auth_result.stdout,
-                                                auth_result.stderr)
-
+        # Create pull request using GitHub API
         logging.info("Creating pull request")
-        pr_command = ["gh", "pr", "create", "--head", branch_name, "--base", source_branch]
-        if pr_title:
-            pr_command.extend(["--title", pr_title])
-        else:
-            pr_command.extend(["--title", "Update repository"])
-        if pr_description:
-            pr_command.extend(["--body", pr_description])
-        else:
-            pr_command.extend(["--body", "Automated update"])
-        pr_result = subprocess.run(pr_command, cwd=repo_path, capture_output=True, text=True)
-        if pr_result.returncode != 0:
-            raise subprocess.CalledProcessError(pr_result.returncode, pr_result.args, pr_result.stdout,
-                                                pr_result.stderr)
+        pr_title = pr_title or "Update repository"
+        pr_description = pr_description or "Automated update"
+        pr = repo.create_pull(title=pr_title, body=pr_description, head=branch_name, base=source_branch)
 
         logging.info("Pull request created successfully")
-        return pr_result.stdout.strip()
+        return pr.html_url
     except subprocess.CalledProcessError as e:
         error_message = f"Command '{e.cmd}' returned non-zero exit status {e.returncode}.\nStdout: {e.stdout}\nStderr: {e.stderr}"
         logging.error(error_message)
@@ -332,7 +347,7 @@ async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background
     try:
         pr_url = create_pull_request(
             repo_path,
-            pr_request.github_token,
+            pr_request.installation_id,
             pr_request.branch,
             pr_request.pr_branch,
             pr_request.pr_title,
