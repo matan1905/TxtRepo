@@ -40,8 +40,7 @@ class RepoRequest(BaseModel):
 
 class PullRequestRequest(BaseModel):
     git_url: str
-    github_token: str
-    summary: str
+    installation_id: int    summary: str
     branch: str = "main"
 
 
