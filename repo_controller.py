@@ -1,5 +1,7 @@
 import os
 from dotenv import load_dotenv
+from database import engine, Base
+from models.user import User
 
 load_dotenv()
 from dsl.factory import DslInstructionFactory
@@ -348,6 +350,7 @@ async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background
 
 
 if __name__ == "__main__":
+Base.metadata.create_all(bind=engine)
     logging.basicConfig(level=logging.INFO)
     REPO_BASE_DIR.mkdir(parents=True, exist_ok=True)
     import uvicorn
