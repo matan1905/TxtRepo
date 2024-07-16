@@ -93,4 +93,4 @@ Remember, the goal is to feed your answer into a parser that will create a pull 
 <NO HUMAN IS READING YOUR RESPONSE - PLEASE MAKE SURE TO INCLUDE EVERYTHING IN YOUR ANSWER>
 
 To make sure you read everything, please write this at the start of your answer:
-"I will make sure to follow every the guidelines above with utmost care, and I'm aware no human is reading my response, so I will leave no unnecessary details and will implement everything."
+"I will make sure to follow every the guidelines above with utmost care"
