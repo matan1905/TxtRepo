@@ -46,6 +46,7 @@ class EditSectionInstruction(DslInstruction):
             elif op == '+':
                 result.append(line)
         result.extend(lines[i:])
+        result = [line if line.endswith('\n') else line + '\n' for line in result]
 
         return result, "Patch applied successfully"
 
