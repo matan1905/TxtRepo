@@ -1,6 +1,13 @@
 # TxtRepo
 
 TxtRepo is a powerful tool that allows users to interact with GitHub repositories using a simple API. It provides functionality to retrieve an entire codebase as a single text file and convert a similarly formatted text file into a pull request.
+## Configuration
+
+Before running the application, make sure to set the `GITHUB_TOKEN` environment variable with your GitHub personal access token:
+
+```
+export GITHUB_TOKEN=your_github_personal_access_token
+```
 
 ## Features
 
