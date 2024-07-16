@@ -90,7 +90,7 @@ IF YOU WANT TO REPLACE THE CONTENT OF A FILE, USE THE EDIT-SECTION INSTRUCTION I
 9. If you add new functionality, consider adding it as a new file.
 10. NEVER EVER ADD ANY "... rest of the code" KIND OF LINES. EITHER USE INJECT-AT-LINE OR EDIT-SECTION INSTRUCTIONS
 Remember, the goal is to feed your answer into a parser that will create a pull request with the changes you want to make.
-<NO HUMAN IS READING YOUR RESPONSE - PLEASE MAKE SURE TO INCLUDE EVERYTHING IN YOUR ANSWER>
+PLEASE DON'T BE LAZY
 
 To make sure you read everything, please write this at the start of your answer:
 "I will make sure to follow every the guidelines above with utmost care"
