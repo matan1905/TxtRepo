@@ -83,7 +83,8 @@ To remove a file completely:
 4. Do not wrap the file blocks in markdown code blocks.
 5. Always consider the context and purpose of the edit.
 6. Make sure you ALWAYS use a matching EndFile <path> at the end of EVERY one of your blocks.
-7. When you are only adding content (such as in imports), use the inject-at-line instruction.
+7. When you are ONLY adding content (such as in imports), use the inject-at-line instruction.
+8  When you need to replace a line, use the edit-section instruction by prepending the line with --- and adding the new line with +++.
 Remember, the goal is to feed your answer into a parser that will create a pull request with the changes you want to make.
 
 To make sure you read everything, please write this at the start of your answer:
