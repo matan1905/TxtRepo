@@ -52,6 +52,7 @@ I REPEAT - KEEP THE EXACT SAME CONTENT AS IN THE ORIGINAL FILE FOR THE CONTEXT.
 Multiple Edits: Use separate edit-section blocks for different changes in the same file.
 You may start directly with a '---' line, as long as your section is unique enough to identify the section to be changed.
 Every line you plan to remove or add should include --- or +++ at the beginning of the line.
+sometimes you need to add a line to a list, don't forget to add the comma at the end of the previous line (by removing the line and adding it again as a patch)
 
 ## Inject Content at a Specific Line
 
