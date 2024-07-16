@@ -91,6 +91,8 @@ class EditSectionInstruction(DslInstruction):
                 current_cluster = []
                 cluster_start = None
                 cluster_end = None
+        if current_cluster:
+            clusters.append((cluster_start, cluster_end, current_cluster))
         return clusters
 
     def expand_cluster_content(self, patches, cluster):
