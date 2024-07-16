@@ -1,7 +1,8 @@
 from .base import DslInstruction
-from difflib import SequenceMatcher
+
 
 class EditSectionInstruction(DslInstruction):
+    MAX_CONTEXT_SIZE = 5
     """
     Patches parts of a file.
     The format is:
@@ -15,60 +16,96 @@ class EditSectionInstruction(DslInstruction):
     def apply(self, file_path, content, lines):
         patch_lines = content.split('\n')
 
-        patch = []
+        patches = []
         for line in patch_lines:
             if line.startswith('---'):
-                patch.append(('-', line[3:]))
+                patches.append(('-', line[3:]))
             elif line.startswith('+++'):
-                patch.append(('+', line[3:]))
+                patches.append(('+', line[3:]))
             else:
-                patch.append((' ', line))
+                patches.append((' ', line))
 
-        # Find the best match for the patch in the original file
-        start_index = self.find_best_patch_location(lines, patch)
+        # split the patch into clusters
+        clusters = self.find_change_clusters(patches)
 
-        if start_index == -1:
-            raise ValueError("Suitable patch location not found in the file")
+        start_index = -1
+        for cluster in clusters:
+            # find the best match for the patch in the original file
+            for content in self.expand_cluster_content(patches, cluster):
+                start_index = self.find_in_lines(lines, content)
+                if start_index != -1:
+                    break
+            if start_index == -1:
+                raise ValueError("Suitable patch location not found in the file")
+            # add the patch to the result
+            lines = self.apply_patch(lines, content, start_index)
 
-        # Apply the patch
+        # make sure all lines end with a newline
+        lines = [line if line.endswith('\n') else line + '\n' for line in lines]
+
+        return lines, "Patch applied successfully"
+
+    def find_in_lines(self, lines, patch):
+        # if the whole patch is op '+' then we return -1
+        if all(p[0] == '+' for p in patch):
+            return -1
+        for i in range(len(lines) - len(patch) + 1):
+            if all(lines[i + j].strip() == p[1].strip() for j, p in enumerate(patch) if p[0] in (' ', '-')):
+                return i
+        return -1
+
+    def apply_patch(self, lines, patch, start_index):
         result = lines[:start_index]
         i = start_index
         for op, line in patch:
             if op == ' ':
-                if i < len(lines) and self.lines_similar(lines[i], line):
-                    result.append(lines[i])
-                    i += 1
-                else:
-                    result.append(line)
+                result.append(line)
+                i += 1
             elif op == '-':
-                if i < len(lines) and self.lines_similar(lines[i], line):
-                    i += 1
+                i += 1
             elif op == '+':
                 result.append(line)
         result.extend(lines[i:])
-        result = [line if line.endswith('\n') else line + '\n' for line in result]
+        return result
 
-        return result, "Patch applied successfully"
 
-    def find_best_patch_location(self, lines, patch):
-        context_lines = [p[1] for p in patch if p[0] in (' ', '-')]
-        best_score = 0
-        best_index = -1
-
-        for i in range(len(lines) - len(context_lines) + 1):
-            score = sum(self.lines_similar(lines[i + j], line) for j, line in enumerate(context_lines))
-            if score > best_score:
-                best_score = score
-                best_index = i
-
-        # Set a threshold for minimum acceptable score
-        if best_score < len(context_lines) * 0.7:  # 70% similarity required
-            return -1
-        return best_index
-
-    def lines_similar(self, line1, line2):
-        return SequenceMatcher(None, line1.strip(), line2.strip()).ratio() > 0.8
 
     @classmethod
     def parse(cls, args):
         return cls()
+
+    def find_change_clusters(self, patches):
+        clusters = []
+        current_cluster = []
+        cluster_start = None
+        cluster_end = None
+
+        for i, (op, line) in enumerate(patches):
+            if op in ('+', '-'):
+                if not current_cluster:
+                    cluster_start = i
+                current_cluster.append((op, line))
+                cluster_end = i
+            elif current_cluster:
+                clusters.append((cluster_start, cluster_end, current_cluster))
+                current_cluster = []
+                cluster_start = None
+                cluster_end = None
+        return clusters
+
+    def expand_cluster_content(self, patches, cluster):
+        cluster_start, cluster_end, cluster_content = cluster
+        # keep returning the cluster while also expanding it from up, down and then up AND down
+        for i in range(0, self.MAX_CONTEXT_SIZE + 1):
+            for j in range(0, self.MAX_CONTEXT_SIZE + 1):
+                if i == 0 and j == 0:
+                    yield cluster_content
+                    continue
+                new_cluster_start = cluster_start - i
+                new_cluster_end = cluster_end + j
+                if new_cluster_start < 0 or new_cluster_end > len(patches):
+                    continue
+                new_cluster_content = patches[new_cluster_start:new_cluster_end]
+                yield new_cluster_content
+
+
