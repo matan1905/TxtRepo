@@ -258,18 +258,13 @@ def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
 
 
 def get_cached_repo(git_url: str, branch: str) -> Path:
-    if git_url in repo_cache:
-        cache_info = repo_cache[git_url]
-        if time.time() - cache_info['timestamp'] < CACHE_EXPIRATION:
-            repo_path = cache_info['path']
-        else:
-            shutil.rmtree(cache_info['path'])
-            del repo_cache[git_url]
-            repo_path = REPO_BASE_DIR / f"repo_{int(time.time())}"
-            repo_path.mkdir(parents=True, exist_ok=True)
-            clone_repo(git_url, repo_path)
-    else:
-        repo_path = REPO_BASE_DIR / f"repo_{int(time.time())}"
+    # Extract user and repo name from git_url
+    user, repo = extract_repo_info(git_url)
+    if not user or not repo:
+        raise HTTPException(status_code=400, detail="Invalid git URL")
+    
+    repo_path = REPO_BASE_DIR / user / repo
+    if not repo_path.exists():
         repo_path.mkdir(parents=True, exist_ok=True)
         clone_repo(git_url, repo_path)
 
@@ -281,7 +276,6 @@ def get_cached_repo(git_url: str, branch: str) -> Path:
     subprocess.run(["git", "checkout", branch], cwd=repo_path, check=True, capture_output=True, text=True)
     subprocess.run(["git", "pull", "origin", branch], cwd=repo_path, check=True, capture_output=True, text=True)
 
-    repo_cache[git_url] = {'path': repo_path, 'timestamp': time.time()}
     return repo_path
 
 @app.get("/repo")
@@ -297,7 +291,6 @@ async def get_repo_summary(
         suppress_comments: bool = Query(False, description="Strip comments from the code files"),
         line_number: bool = Query(False, description="Add line numbers to source code blocks")
 ):
-    clean_old_repos(background_tasks)
     repo_path = get_cached_repo(repo_request.git_url, branch)
     summary = await run_code2prompt(
         repo_path,
@@ -322,7 +315,6 @@ def clean_old_repos(background_tasks: BackgroundTasks):
 
 @app.post("/repo")
 async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background_tasks: BackgroundTasks):
-    clean_old_repos(background_tasks)
     repo_path = get_cached_repo(pr_request.git_url, pr_request.branch)
 
     files = parse_summary(pr_request.summary, repo_path)
