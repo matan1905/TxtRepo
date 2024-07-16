@@ -11,7 +11,6 @@ from fastapi.responses import HTMLResponse
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
 from pydantic import BaseModel
 import shutil
-import time
 import asyncio
 from typing import Dict, Any, List, Optional
 import logging
@@ -26,7 +25,8 @@ async def root():
     with open("static/index.html", "r") as f:
         content = f.read()
     return HTMLResponse(content=content)
-
+import logging
+REPO_BASE_DIR = Path("/tmp/repos")  # Base directory for repositories
 
 # Cache to store cloned repositories
 repo_cache: Dict[str, Dict[str, Any]] = {}
@@ -258,20 +258,16 @@ def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
 
 
 def get_cached_repo(git_url: str, branch: str) -> Path:
-    if git_url in repo_cache:
-        cache_info = repo_cache[git_url]
-        if time.time() - cache_info['timestamp'] < CACHE_EXPIRATION:
-            repo_path = cache_info['path']
-        else:
-            shutil.rmtree(cache_info['path'])
-            del repo_cache[git_url]
-            repo_path = REPO_BASE_DIR / f"repo_{int(time.time())}"
-            repo_path.mkdir(parents=True, exist_ok=True)
-            clone_repo(git_url, repo_path)
-    else:
-        repo_path = REPO_BASE_DIR / f"repo_{int(time.time())}"
+    user, repo = extract_repo_info(git_url)
+    if not user or not repo:
+        raise HTTPException(status_code=400, detail="Invalid GitHub URL")
+    repo_path = REPO_BASE_DIR / user / repo
+    if not repo_path.exists():
         repo_path.mkdir(parents=True, exist_ok=True)
         clone_repo(git_url, repo_path)
+    else:
+        # Update the existing repository
+        subprocess.run(["git", "fetch", "origin"], cwd=repo_path, check=True, capture_output=True, text=True)
 
     # Clean all previous changes
     subprocess.run(["git", "clean", "-fd"], cwd=repo_path, check=True, capture_output=True, text=True)
@@ -310,14 +306,8 @@ async def get_repo_summary(
     )
     return {"summary": summary}
 def clean_old_repos(background_tasks: BackgroundTasks):
-    def cleanup():
-        current_time = time.time()
-        for git_url, cache_info in list(repo_cache.items()):
-            if current_time - cache_info['timestamp'] >= CACHE_EXPIRATION:
-                shutil.rmtree(cache_info['path'])
-                del repo_cache[git_url]
-
-    background_tasks.add_task(cleanup)
+    # This function is no longer needed as we don't use caching
+    pass
 
 
 @app.post("/repo")
