@@ -1,3 +1,4 @@
+from ghapp import get_installation_access_token
 from dsl.factory import DslInstructionFactory
 from dsl.base import DslInstruction
 import os
@@ -40,8 +41,7 @@ class RepoRequest(BaseModel):
 
 class PullRequestRequest(BaseModel):
     git_url: str
-    github_token: str
-    summary: str
+    installation_id: int    summary: str
     branch: str = "main"
 
 
@@ -218,8 +218,7 @@ def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
 
         # Get the remote URL and add the token
         remote_url = subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=repo_path, text=True).strip()
-        auth_remote = re.sub(r"https://", f"https://x-access-token:{github_token}@", remote_url)
-
+        access_token = get_installation_access_token(installation_id)        auth_remote = re.sub(r"https://", f"https://x-access-token:{access_token}@", remote_url)
         # Push changes
         logging.info(f"Pushing changes to branch: {branch_name}")
         push_result = subprocess.run(["git", "push", "-u", auth_remote, branch_name], cwd=repo_path,
@@ -230,9 +229,7 @@ def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
 
         # Create pull request using GitHub CLI
         logging.info("Authenticating with GitHub CLI")
-        auth_result = subprocess.run(["gh", "auth", "login", "--with-token"], input=github_token, text=True,
-                                     capture_output=True)
-        if auth_result.returncode != 0:
+        auth_result = subprocess.run(["gh", "auth", "login", "--with-token"], input=access_token, text=True,                                     capture_output=True)        if auth_result.returncode != 0:
             raise subprocess.CalledProcessError(auth_result.returncode, auth_result.args, auth_result.stdout,
                                                 auth_result.stderr)
 
@@ -329,8 +326,7 @@ async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background
     update_repo(files, repo_path)
 
     try:
-        pr_url = create_pull_request(repo_path, pr_request.github_token, pr_request.branch)
-        return {"pull_request_url": pr_url}
+        pr_url = create_pull_request(repo_path, pr_request.installation_id, pr_request.branch)        return {"pull_request_url": pr_url}
     except HTTPException as e:
         return {"error": e.detail}
 
