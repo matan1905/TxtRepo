@@ -75,6 +75,9 @@ To remove a file completely:
 # File /path/to/file::delete-file
 # EndFile /path/to/file
 
+THIS WILL DELETE THE ENTIRE FILE - USE WITH CAUTION!
+IF YOU WANT TO REPLACE THE CONTENT OF A FILE, USE THE EDIT-SECTION INSTRUCTION INSTEAD.
+
 ## General Guidelines
 
 1. Make minimal, precise edits.
