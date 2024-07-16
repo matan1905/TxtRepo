@@ -18,13 +18,15 @@ class EditSectionInstruction(DslInstruction):
 
         patches = []
         for line in patch_lines:
-            if line.startswith('---') and len(line) > 3:
-                patches.append(('-', line[3:]))
-            elif line.startswith('+++') and len(line) > 3:
-                patches.append(('+', line[3:]))
+            if line.startswith('---'):
+                if len(line) > 3:
+                    patches.append(('-', line[3:]))
+            elif line.startswith('+++'):
+                if len(line) > 3:
+                    patches.append(('+', line[3:]))
             else:
                 patches.append((' ', line))
-
+        print(patches)
         # split the patch into clusters
         clusters = self.find_change_clusters(patches)
 
@@ -33,7 +35,6 @@ class EditSectionInstruction(DslInstruction):
             # find the best match for the patch in the original file
             for content in self.expand_cluster_content(patches, cluster):
                 start_index = self.find_in_lines(lines, content)
-                print(start_index)
                 if start_index != -1:
                     break
             if start_index == -1:
@@ -51,6 +52,7 @@ class EditSectionInstruction(DslInstruction):
         # if the whole patch is op '+' then we return -1
         if len(non_plus) == 0:
             return -1
+        print(patch)
         for i in range(len(lines) - len(non_plus) + 1):
             if all(lines[i + j].strip() == p[1].strip() for j, p in enumerate(patch) if p[0] in (' ', '-')):
                 return i
