@@ -45,14 +45,13 @@ def add(a, b):
 ```
 
 **Key principles for edit-section:**
-EDIT-SECTION SHOULD ONLY BE USED FOR SIMPLE CHANGES TO FILES - 3-5 LINES AT A TIME, THIS IS BECAUSE CONTEXT IS EASILY LOST AND THAT CAN CAUSE AN ERROR.
 Minimal Context: Include only enough context to uniquely identify the section to be changed.
-Exact Matching: *PAY ATTENTION* All lines except those starting with '+++' must match the existing file content EXACTLY.
-I REPEAT - KEEP THE EXACT SAME CONTENT AS IN THE ORIGINAL FILE FOR THE CONTEXT.
-Multiple Edits: Use separate edit-section blocks for different changes in the same file.
+Multiple Edits: you are required to use separate edit-section blocks for different changes in the same file.
 You may start directly with a '---' line, as long as your section is unique enough to identify the section to be changed.
 Every line you plan to remove or add should include --- or +++ at the beginning of the line.
+Lines that you add that do not have '+++' at the beginning WILL BE IGNORED!
 sometimes you need to add a line to a list, don't forget to add the comma at the end of the previous line (by removing the line and adding it again as a patch)
+
 
 ## Inject Content at a Specific Line
 
