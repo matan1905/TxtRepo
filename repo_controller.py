@@ -14,7 +14,46 @@ import shutil
 import time
 import asyncio
 from typing import Dict, Any, List, Optional
+from github import Github
+from github.GithubIntegration import GithubIntegration
+import jwt
+import time
+import requests
 import logging
+# GitHub App configuration
+GITHUB_APP_ID = "your_app_id"
+GITHUB_APP_PRIVATE_KEY = """
+-----BEGIN RSA PRIVATE KEY-----
+Your private key here
+-----END RSA PRIVATE KEY-----
+"""
+GITHUB_APP_INSTALLATION_ID = "your_installation_id"
+
+def get_github_app_access_token():
+    # Create a JWT for the GitHub App
+    now = int(time.time())
+    payload = {
+        "iat": now,
+        "exp": now + 600,
+        "iss": GITHUB_APP_ID
+    }
+    encoded_jwt = jwt.encode(payload, GITHUB_APP_PRIVATE_KEY, algorithm="RS256")
+
+    # Get an installation access token
+    headers = {
+        "Authorization": f"Bearer {encoded_jwt}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    response = requests.post(
+        f"https://api.github.com/app/installations/{GITHUB_APP_INSTALLATION_ID}/access_tokens",
+        headers=headers
+    )
+    response.raise_for_status()
+    return response.json()["token"]
+
+def get_github_client():
+    access_token = get_github_app_access_token()
+    return Github(access_token)
 
 app = FastAPI()
 # Mount the static files directory
@@ -40,7 +79,6 @@ class RepoRequest(BaseModel):
 
 class PullRequestRequest(BaseModel):
     git_url: str
-    github_token: str
     summary: str
     branch: str = "main"
     pr_branch: Optional[str] = None
@@ -332,7 +370,6 @@ async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background
     try:
         pr_url = create_pull_request(
             repo_path,
-            pr_request.github_token,
             pr_request.branch,
             pr_request.pr_branch,
             pr_request.pr_title,

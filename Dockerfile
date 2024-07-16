@@ -31,7 +31,7 @@ COPY static /app/static
 COPY . /app
 
 # Install Python dependencies
-RUN pip install --no-cache-dir fastapi uvicorn gitpython
+RUN pip install --no-cache-dir fastapi uvicorn gitpython PyJWT PyGithub requests
 
 # Create a directory for repositories and set permissions
 RUN mkdir -p /tmp/repos && chmod 777 /tmp/repos

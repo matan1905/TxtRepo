@@ -43,7 +43,6 @@ To create a pull request, send a POST request to the `/repo` endpoint with the f
 ```json
 {
   "git_url": "https://github.com/username/repo.git",
-  "github_token": "your_github_personal_access_token",
   "summary": "# File /path/to/file\nYour code or content here\n# EndFile /path/to/file",
   "branch": "main"
 }
@@ -106,6 +105,16 @@ POST /repo
 ```
 
 Response:
+## GitHub App Configuration
+
+To use the GitHub App authentication:
+
+1. Create a GitHub App in your GitHub account or organization.
+2. Generate a private key for the app and note down the App ID.
+3. Install the app in your repository and note down the Installation ID.
+4. Update the `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, and `GITHUB_APP_INSTALLATION_ID` variables in the `repo_controller.py` file.
+
+With these changes, the application will use GitHub App authentication instead of personal access tokens.
 ```json
 {
   "pull_request_url": "https://github.com/example/repo/pull/1"
