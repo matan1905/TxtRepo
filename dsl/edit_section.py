@@ -33,6 +33,7 @@ class EditSectionInstruction(DslInstruction):
             # find the best match for the patch in the original file
             for content in self.expand_cluster_content(patches, cluster):
                 start_index = self.find_in_lines(lines, content)
+                print(start_index)
                 if start_index != -1:
                     break
             if start_index == -1:
@@ -46,10 +47,11 @@ class EditSectionInstruction(DslInstruction):
         return lines, "Patch applied successfully"
 
     def find_in_lines(self, lines, patch):
+        non_plus = [p for p in patch if p[0] != '+']
         # if the whole patch is op '+' then we return -1
-        if all(p[0] == '+' for p in patch):
+        if len(non_plus) == 0:
             return -1
-        for i in range(len(lines) - len(patch) + 1):
+        for i in range(len(lines) - len(non_plus) + 1):
             if all(lines[i + j].strip() == p[1].strip() for j, p in enumerate(patch) if p[0] in (' ', '-')):
                 return i
         return -1
