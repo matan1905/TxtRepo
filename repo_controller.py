@@ -1,3 +1,7 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 from dsl.factory import DslInstructionFactory
 from dsl.base import DslInstruction
 import os
@@ -30,8 +34,8 @@ async def root():
 
 # Cache to store cloned repositories
 repo_cache: Dict[str, Dict[str, Any]] = {}
-CACHE_EXPIRATION = 3600  # 1 hour
-REPO_BASE_DIR = Path("/tmp/repos")  # Base directory for repositories
+CACHE_EXPIRATION = int(os.getenv('CACHE_EXPIRATION', 3600))
+REPO_BASE_DIR = Path(os.getenv('REPO_BASE_DIR', '/tmp/repos'))
 
 
 class RepoRequest(BaseModel):

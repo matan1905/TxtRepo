@@ -31,7 +31,8 @@ COPY static /app/static
 COPY . /app
 
 # Install Python dependencies
-RUN pip install --no-cache-dir fastapi uvicorn gitpython
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Create a directory for repositories and set permissions
 RUN mkdir -p /tmp/repos && chmod 777 /tmp/repos
