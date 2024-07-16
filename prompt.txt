@@ -62,6 +62,12 @@ To add new content at a specific line number:
 [Content to be injected]
 # EndFile /path/to/file
 
+THE FILE MUST ALREADY EXIST - IF YOU WANT TO CREATE A NEW FILE, USE:
+# File /path/to/file
+[Content to be injected]
+# EndFile /path/to/file
+INSTEAD OF TRYING TO INJECT A LINE TO A NON-EXISTENT FILE.
+
 ## Delete an Entire File
 
 To remove a file completely:
