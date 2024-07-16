@@ -192,7 +192,7 @@ def update_repo(files: list, repo_path: Path):
             raise HTTPException(status_code=500, detail=f"Error processing file {path}: {str(e)}")
 
 
-def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
+def create_pull_request(repo_path: Path, github_token: str, source_branch: str, pr_branch: Optional[str] = None, pr_title: Optional[str] = None, pr_description: Optional[str] = None):
     try:
         # Set up Git configuration
         subprocess.run(["git", "config", "user.name", "GitHub Actions"], cwd=repo_path, check=True, capture_output=True,
@@ -207,7 +207,7 @@ def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
             return "No changes to commit"
 
         # Create a new branch
-        branch_name = f"update-{int(time.time())}"
+        branch_name = pr_branch if pr_branch else f"update-{int(time.time())}_txt-repo_{int(time.time())}"
         subprocess.run(["git", "checkout", "-b", branch_name], cwd=repo_path, check=True, capture_output=True,
                        text=True)
 
@@ -237,10 +237,16 @@ def create_pull_request(repo_path: Path, github_token: str, source_branch: str):
                                                 auth_result.stderr)
 
         logging.info("Creating pull request")
-        pr_result = subprocess.run(
-            ["gh", "pr", "create", "--title", "Update repository", "--body", "Automated update", "--head", branch_name,
-             "--base", source_branch],
-            cwd=repo_path, capture_output=True, text=True)
+        pr_command = ["gh", "pr", "create", "--head", branch_name, "--base", source_branch]
+        if pr_title:
+            pr_command.extend(["--title", pr_title])
+        else:
+            pr_command.extend(["--title", "Update repository"])
+        if pr_description:
+            pr_command.extend(["--body", pr_description])
+        else:
+            pr_command.extend(["--body", "Automated update"])
+        pr_result = subprocess.run(pr_command, cwd=repo_path, capture_output=True, text=True)
         if pr_result.returncode != 0:
             raise subprocess.CalledProcessError(pr_result.returncode, pr_result.args, pr_result.stdout,
                                                 pr_result.stderr)
@@ -321,7 +327,14 @@ async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background
     update_repo(files, repo_path)
 
     try:
-        pr_url = create_pull_request(repo_path, pr_request.github_token, pr_request.branch)
+        pr_url = create_pull_request(
+            repo_path,
+            pr_request.github_token,
+            pr_request.branch,
+            pr_request.pr_branch,
+            pr_request.pr_title,
+            pr_request.pr_description
+        )
         return {"pull_request_url": pr_url}
     except HTTPException as e:
         return {"error": e.detail}
