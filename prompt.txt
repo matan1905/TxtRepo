@@ -51,7 +51,7 @@ You may start directly with a '---' line, as long as your section is unique enou
 Every line you plan to remove or add should include --- or +++ at the beginning of the line.
 Lines that you add that do not have '+++' at the beginning WILL BE IGNORED!
 sometimes you need to add a line to a list, don't forget to add the comma at the end of the previous line (by removing the line and adding it again as a patch)
-
+NEVER USE A LINE WITH ONLY +++ OR --- AT THE BEGINNING OF THE LINE it causes bugs
 
 ## Inject Content at a Specific Line
 

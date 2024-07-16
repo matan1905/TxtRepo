@@ -18,9 +18,9 @@ class EditSectionInstruction(DslInstruction):
 
         patches = []
         for line in patch_lines:
-            if line.startswith('---'):
+            if line.startswith('---') and len(line) > 3:
                 patches.append(('-', line[3:]))
-            elif line.startswith('+++'):
+            elif line.startswith('+++') and len(line) > 3:
                 patches.append(('+', line[3:]))
             else:
                 patches.append((' ', line))
