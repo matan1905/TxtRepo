@@ -31,6 +31,7 @@ COPY static /app/static
 COPY . /app
 
 # Install Python dependencies
+RUN pip install --no-cache-dir fastapi uvicorn gitpython PyGithub
 RUN pip install --no-cache-dir fastapi uvicorn gitpython
 
 # Create a directory for repositories and set permissions
