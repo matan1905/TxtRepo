@@ -2,3 +2,5 @@ fastapi
 uvicorn
 gitpython
 python-dotenv
+sqlalchemy
+alembic
