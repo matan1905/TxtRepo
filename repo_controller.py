@@ -4,6 +4,9 @@ import os
 import subprocess
 import tempfile
 import sys
+from github import Github, GithubIntegration
+import jwt
+import time
 import re
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
@@ -16,6 +19,9 @@ import asyncio
 from typing import Dict, Any, List, Optional
 import logging
 
+# GitHub App configuration
+GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
+GITHUB_APP_PRIVATE_KEY = os.environ.get("GITHUB_APP_PRIVATE_KEY")
 app = FastAPI()
 # Mount the static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -40,7 +46,7 @@ class RepoRequest(BaseModel):
 
 class PullRequestRequest(BaseModel):
     git_url: str
-    github_token: str
+    installation_id: int
     summary: str
     branch: str = "main"
     pr_branch: Optional[str] = None
@@ -332,7 +338,7 @@ async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background
     try:
         pr_url = create_pull_request(
             repo_path,
-            pr_request.github_token,
+            pr_request.installation_id,
             pr_request.branch,
             pr_request.pr_branch,
             pr_request.pr_title,
@@ -342,6 +348,20 @@ async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background
     except HTTPException as e:
         return {"error": e.detail}
 
+def get_installation_access_token(installation_id: int) -> str:
+    private_key = jwt.encode(
+        {
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 600,
+            "iss": GITHUB_APP_ID
+        },
+        GITHUB_APP_PRIVATE_KEY,
+        algorithm="RS256"
+    )
+
+    integration = GithubIntegration(GITHUB_APP_ID, private_key)
+    access_token = integration.get_access_token(installation_id)
+    return access_token.token
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
