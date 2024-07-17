@@ -20,7 +20,6 @@ import asyncio
 from typing import Dict, Any, List, Optional
 import logging
 
-app = FastAPI()
 # Mount the static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -32,6 +31,7 @@ async def root():
     return HTMLResponse(content=content)
 
 
+# Cache to store cloned repositories
 # Cache to store cloned repositories
 repo_cache: Dict[str, Dict[str, Any]] = {}
 CACHE_EXPIRATION = int(os.getenv('CACHE_EXPIRATION', 3600))
@@ -345,8 +345,8 @@ async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background
         return {"error": e.detail}
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+# Initialize logging and create REPO_BASE_DIR
+logging.basicConfig(level=logging.INFO)
     REPO_BASE_DIR.mkdir(parents=True, exist_ok=True)
     import uvicorn
 
