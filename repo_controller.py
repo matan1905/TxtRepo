@@ -38,8 +38,6 @@ CACHE_EXPIRATION = int(os.getenv('CACHE_EXPIRATION', 3600))
 REPO_BASE_DIR = Path(os.getenv('REPO_BASE_DIR', '/tmp/repos'))
 
 
-class RepoRequest(BaseModel):
-    git_url: str
 
 
 class PullRequestRequest(BaseModel):
@@ -293,7 +291,7 @@ def get_cached_repo(git_url: str, branch: str) -> Path:
 
 @app.get("/repo")
 async def get_repo_summary(
-        repo_request: RepoRequest,
+        git_url: str = Query(..., description="The URL of the GitHub repository"),
         background_tasks: BackgroundTasks,
         branch: str = Query("main", description="Branch to fetch"),
         filter_patterns: Optional[str] = Query(None,
@@ -304,10 +302,10 @@ async def get_repo_summary(
         suppress_comments: bool = Query(False, description="Strip comments from the code files"),
         line_number: bool = Query(False, description="Add line numbers to source code blocks")
 ):
-    repo_path = get_cached_repo(repo_request.git_url, branch)
+    repo_path = get_cached_repo(git_url, branch)
     summary = await run_code2prompt(
         repo_path,
-        repo_request.git_url,
+        git_url,
         filter_patterns,
         exclude_patterns,
         case_sensitive,
