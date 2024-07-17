@@ -53,6 +53,21 @@
     </style>
 </head>
 <body>
+    <h2>Demo</h2>
+    <div>
+        <label for="repoUrl">Repository URL:</label>
+        <input type="text" id="repoUrl" placeholder="https://github.com/username/repo.git">
+        <button onclick="getSummary()">Get Summary</button>
+    </div>
+    <textarea id="summaryResult" rows="10" cols="80" readonly></textarea>
+    <script>
+        async function getSummary() {
+            const repoUrl = document.getElementById('repoUrl').value;
+            const response = await fetch(`/repo?git_url=${encodeURIComponent(repoUrl)}`);
+            const data = await response.json();
+            document.getElementById('summaryResult').value = data.summary;
+        }
+    </script>
     <h1>TxtRepo</h1>
     <p>TxtRepo is a powerful tool that allows users to interact with GitHub repositories using a simple API. It provides functionality to retrieve an entire codebase as a single text file and convert a similarly formatted text file into a pull request. The project is open-source and available at <a href="https://github.com/matan1905/TxtRepo">https://github.com/matan1905/TxtRepo</a>.</p>
 
