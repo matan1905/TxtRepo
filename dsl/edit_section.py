@@ -1,4 +1,5 @@
-from .base import DslInstruction
+from difflib import SequenceMatcher
+
 
 
 class EditSectionInstruction(DslInstruction):
@@ -49,14 +50,21 @@ class EditSectionInstruction(DslInstruction):
 
     def find_in_lines(self, lines, patch):
         non_plus = [p for p in patch if p[0] != '+']
-        # if the whole patch is op '+' then we return -1
         if len(non_plus) == 0:
             return -1
-        print(patch)
+        
+        patch_text = '\n'.join(p[1].strip() for p in non_plus)
+        best_match = -1
+        best_ratio = 0
+        
         for i in range(len(lines) - len(non_plus) + 1):
-            if all(lines[i + j].strip() == p[1].strip() for j, p in enumerate(patch) if p[0] in (' ', '-')):
-                return i
-        return -1
+            window = '\n'.join(lines[i:i+len(non_plus)]).strip()
+            ratio = SequenceMatcher(None, patch_text, window).ratio()
+            if ratio > best_ratio and ratio >= 0.7:
+                best_ratio = ratio
+                best_match = i
+        
+        return best_match
 
     def apply_patch(self, lines, patch, start_index):
         result = lines[:start_index]
