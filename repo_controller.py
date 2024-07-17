@@ -291,8 +291,8 @@ def get_cached_repo(git_url: str, branch: str) -> Path:
 
 @app.get("/repo")
 async def get_repo_summary(
-        git_url: str = Query(..., description="The URL of the GitHub repository"),
         background_tasks: BackgroundTasks,
+        git_url: str = Query(..., description="The URL of the GitHub repository"),
         branch: str = Query("main", description="Branch to fetch"),
         filter_patterns: Optional[str] = Query(None,
                                                description="Comma-separated filter patterns to include files (e.g., '*.py,*.js')"),
