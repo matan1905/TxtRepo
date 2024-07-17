@@ -1,5 +1,5 @@
 from difflib import SequenceMatcher
-
+from .base import DslInstruction
 
 
 class EditSectionInstruction(DslInstruction):
