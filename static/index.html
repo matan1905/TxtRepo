@@ -107,7 +107,21 @@ Your code or content here
     </pre>
     <p>Note that when using the "injectAtLine" feature, you need to add spaces at the beginning of each line to match the indentation of the surrounding code.</p>
     <p>The response will include the URL of the created pull request.</p>
-
+    <h2>Demo</h2>
+    <div>
+        <label for="repoUrl">Repository URL:</label>
+        <input type="text" id="repoUrl" placeholder="https://github.com/matan1905/TxtRepo.git">
+        <button onclick="getSummary()">Get code</button>
+    </div>
+    <textarea id="summaryResult" rows="10" cols="80" readonly></textarea>
+    <script>
+        async function getSummary() {
+            const repoUrl = document.getElementById('repoUrl').value;
+            const response = await fetch(`/repo?git_url=${encodeURIComponent(repoUrl)}`);
+            const data = await response.json();
+            document.getElementById('summaryResult').value = data.summary;
+        }
+    </script>
     <div class="note">
         <h3>Note</h3>
         <p>Make sure to keep your GitHub personal access token secure and never share it publicly.</p>
