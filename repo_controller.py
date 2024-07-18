@@ -111,7 +111,7 @@ def process_relative_paths(output: str, base_path: Path, git_url: str) -> str:
     return '\n'.join(processed_lines)
 
 
-def parse_summary(summary: str, repo_path: Path):
+def parse_summary(summary: str, repo_path: Path, user: Optional[str] = None, repo: Optional[str] = None):
     file_pattern = re.compile(r'# File (.*?)(::.*?)?\n(.*?)# EndFile \1', re.DOTALL)
     files = []
     last_end = 0
@@ -128,6 +128,8 @@ def parse_summary(summary: str, repo_path: Path):
         # Remove repo path from path (repo_path is of type Path)
         if path.startswith(str(repo_path)):
             path = path[len(str(repo_path)):]
+        elif user and repo and path.startswith(f"/{user}/{repo}"):
+            path = path[len(f"/{user}/{repo}"):]
 
         # Parse the DSL instructions
         dsl_instructions = parse_dsl(command[2:] if command else "")
@@ -267,9 +269,8 @@ def create_pull_request(repo_path: Path, github_token: str, source_branch: str, 
         raise HTTPException(status_code=500, detail=error_message)
 
 
-def get_cached_repo(git_url: str, branch: str) -> Path:
+def get_cached_repo(git_url: str, branch: str, user: Optional[str] = None, repo: Optional[str] = None) -> Path:
     # Extract user and repo name from git_url
-    user, repo = extract_repo_info(git_url)
     if not user or not repo:
         raise HTTPException(status_code=400, detail="Invalid git URL")
     
@@ -301,7 +302,9 @@ async def get_repo_summary(
         suppress_comments: bool = Query(False, description="Strip comments from the code files"),
         line_number: bool = Query(False, description="Add line numbers to source code blocks")
 ):
-    repo_path = get_cached_repo(git_url, branch)
+    user, repo = extract_repo_info(git_url)
+
+    repo_path = get_cached_repo(git_url, branch, user, repo)
     summary = await run_code2prompt(
         repo_path,
         git_url,
@@ -325,9 +328,10 @@ def clean_old_repos(background_tasks: BackgroundTasks):
 
 @app.post("/repo")
 async def apply_changes_and_create_pr(pr_request: PullRequestRequest, background_tasks: BackgroundTasks):
-    repo_path = get_cached_repo(pr_request.git_url, pr_request.branch)
+    user, repo = extract_repo_info(pr_request.git_url)
+    repo_path = get_cached_repo(pr_request.git_url, pr_request.branch, user, repo)
 
-    files = parse_summary(pr_request.summary, repo_path)
+    files = parse_summary(pr_request.summary, repo_path, user, repo)
     update_repo(files, repo_path)
 
     try:
