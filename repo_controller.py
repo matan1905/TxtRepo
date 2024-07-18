@@ -127,10 +127,9 @@ def parse_summary(summary: str, repo_path: Path):
         content = match.group(3).strip()
         last_end = match.end()
 
-        # Remove the friendly base path if present
-        path_parts = path.split('/')
-        if len(path_parts) > 2 and path_parts[0] == '':
-            path = '/'.join(path_parts[3:])
+        # Remove repo path from path (repo_path is of type Path)
+        if path.startswith(str(repo_path)):
+            path = path[len(str(repo_path)):]
 
         # Parse the DSL instructions
         dsl_instructions = parse_dsl(command[2:] if command else "")
