@@ -50,11 +50,55 @@
             padding: 10px;
             margin-top: 20px;
         }
+        #demo {
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+        #repoUrl {
+            width: 70%;
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+        }
+        #getCodeBtn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #getCodeBtn:hover {
+            background-color: #2980b9;
+        }
+        #getCodeBtn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        #summaryResult {
+            width: 100%;
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            resize: vertical;
+            display: none;
+        }
+        #loadingIndicator {
+            display: none;
+            margin-top: 10px;
+            color: #3498db;
+        }
     </style>
 </head>
 <body>
     <h1>TxtRepo</h1>
-    <p>TxtRepo is a powerful tool that allows users to interact with GitHub repositories using a simple API. It provides functionality to retrieve an entire codebase as a single text file and convert a similarly formatted text file into a pull request.</p>
+    <p>TxtRepo is a powerful tool that allows users to interact with GitHub repositories using a simple API. It provides functionality to retrieve an entire codebase as a single text file and convert a similarly formatted text file into a pull request. The project is open-source and available at <a href="https://github.com/matan1905/TxtRepo">https://github.com/matan1905/TxtRepo</a>.</p>
 
     <h2>Features</h2>
     <ul class="feature-list">
@@ -68,6 +112,8 @@
         <li>Specify branch for fetching and creating pull requests</li>
         <li>Automatic repository caching for improved performance</li>
         <li>Support for file deletion and content injection at specific lines</li>
+        <li>Edit specific sections of files</li>
+        <li>Create new files or replace entire file contents</li>
     </ul>
 
     <h2>How to Use</h2>
@@ -105,7 +151,39 @@ Your code or content here
     </pre>
     <p>Note that when using the "injectAtLine" feature, you need to add spaces at the beginning of each line to match the indentation of the surrounding code.</p>
     <p>The response will include the URL of the created pull request.</p>
+    <h2>Demo</h2>
+    <div id="demo">
+        <label for="repoUrl">Repository URL:</label>
+        <input type="text" id="repoUrl" placeholder="https://github.com/matan1905/TxtRepo.git">
+        <button id="getCodeBtn" onclick="getSummary()">Get code</button>
+        <div id="loadingIndicator">Loading...</div>
+        <textarea id="summaryResult" rows="10" cols="80" readonly></textarea>
+    </div>
+    <script>
+        async function getSummary() {
+            const repoUrl = document.getElementById('repoUrl').value;
+            const button = document.getElementById('getCodeBtn');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const summaryResult = document.getElementById('summaryResult');
 
+            button.disabled = true;
+            loadingIndicator.style.display = 'block';
+            summaryResult.style.display = 'none';
+
+            try {
+                const response = await fetch(`/repo?git_url=${encodeURIComponent(repoUrl)}`);
+                const data = await response.json();
+                summaryResult.value = data.summary;
+                summaryResult.style.display = 'block';
+            } catch (error) {
+                console.error('Error fetching summary:', error);
+                alert('An error occurred while fetching the summary. Please try again.');
+            } finally {
+                button.disabled = false;
+                loadingIndicator.style.display = 'none';
+            }
+        }
+    </script>
     <div class="note">
         <h3>Note</h3>
         <p>Make sure to keep your GitHub personal access token secure and never share it publicly.</p>

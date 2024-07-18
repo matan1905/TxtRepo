@@ -3,7 +3,6 @@
 TxtRepo is a powerful tool that allows users to interact with GitHub repositories using a simple API. It provides functionality to retrieve an entire codebase as a single text file and convert a similarly formatted text file into a pull request.
 
 ## Features
-
 - Get a summary of a GitHub repository's contents
 - Create pull requests by providing a formatted text file with changes
 - Filter files based on patterns
@@ -14,6 +13,8 @@ TxtRepo is a powerful tool that allows users to interact with GitHub repositorie
 - Specify branch for fetching and creating pull requests
 - Automatic repository caching for improved performance
 - Support for file deletion and content injection at specific lines
+- Edit specific sections of files
+- Create new files or replace entire file contents
 
 ## How to Use
 
