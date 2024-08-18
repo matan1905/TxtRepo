@@ -31,16 +31,21 @@ class EditSectionInstruction(DslInstruction):
         # split the patch into clusters
         clusters = self.find_change_clusters(patches)
 
-        start_index = -1
         for cluster in clusters:
             # find the best match for the patch in the original file
+            best_match = None
+            best_score = -1
             for content in self.expand_cluster_content(patches, cluster):
-                start_index = self.find_in_lines(lines, content)
-                if start_index != -1:
-                    break
-            if start_index == -1:
+                match_index, match_score = self.find_in_lines(lines, content)
+                if match_score > best_score:
+                    best_match = (match_index, content)
+                    best_score = match_score
+            
+            if best_match is None:
                 raise ValueError("Suitable patch location not found in the file")
+            
             # add the patch to the result
+            start_index, content = best_match
             lines = self.apply_patch(lines, content, start_index)
 
         # make sure all lines end with a newline
@@ -51,7 +56,7 @@ class EditSectionInstruction(DslInstruction):
     def find_in_lines(self, lines, patch):
         non_plus = [p for p in patch if p[0] != '+']
         if len(non_plus) == 0:
-            return -1
+            return -1, 0
         
         patch_text = '\n'.join(p[1].strip() for p in non_plus)
         best_match = -1
@@ -64,7 +69,7 @@ class EditSectionInstruction(DslInstruction):
                 best_ratio = ratio
                 best_match = i
         
-        return best_match
+        return best_match, best_ratio
 
     def apply_patch(self, lines, patch, start_index):
         result = lines[:start_index]
